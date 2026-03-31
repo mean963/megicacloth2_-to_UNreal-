@@ -1067,25 +1067,70 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 			continue;
 		}
 
-		FTransform Interped;
-
+		// Interpolate simulation position
+		FVector SimPos;
 		if (PrevResults.IsValidIndex(i))
 		{
-			Interped.Blend(PrevResults[i], SimResult[i], InterpAlpha);
+			SimPos = FMath::Lerp(PrevResults[i].GetTranslation(), SimResult[i].GetTranslation(), InterpAlpha);
 		}
 		else
 		{
-			Interped = SimResult[i];
+			SimPos = SimResult[i].GetTranslation();
 		}
+
+		// Reconstruct bone rotation from parent-child direction
+		const FTransform OriginalTransform = Output.Pose.GetComponentSpaceTransform(BoneIndices[i]);
+		FQuat SimRotation = OriginalTransform.GetRotation(); // default: keep original rotation
+
+		// Find parent index in the bone chain
+		int32 ParentInChain = INDEX_NONE;
+		if (VirtualMeshPtr && i < VirtualMeshPtr->ParentIndices.Num())
+		{
+			ParentInChain = VirtualMeshPtr->ParentIndices[i];
+		}
+
+		if (ParentInChain != INDEX_NONE && ParentInChain < NumBones)
+		{
+			// Get parent's simulated position
+			FVector ParentSimPos = SimResult[ParentInChain].GetTranslation();
+			if (PrevResults.IsValidIndex(ParentInChain))
+			{
+				ParentSimPos = FMath::Lerp(PrevResults[ParentInChain].GetTranslation(),
+					SimResult[ParentInChain].GetTranslation(), InterpAlpha);
+			}
+
+			// Direction from parent to this bone
+			const FVector Dir = SimPos - ParentSimPos;
+			const float DirLen = Dir.Size();
+
+			if (DirLen > UE_SMALL_NUMBER)
+			{
+				// Get original direction from parent to child
+				const FVector OrigParentPos = Output.Pose.GetComponentSpaceTransform(BoneIndices[ParentInChain]).GetTranslation();
+				const FVector OrigDir = OriginalTransform.GetTranslation() - OrigParentPos;
+				const float OrigDirLen = OrigDir.Size();
+
+				if (OrigDirLen > UE_SMALL_NUMBER)
+				{
+					// Compute rotation delta from original to simulated direction
+					const FQuat DeltaRot = FQuat::FindBetweenNormals(
+						OrigDir / OrigDirLen, Dir / DirLen);
+					// Apply delta to parent's original rotation for this bone's rotation
+					const FQuat ParentOrigRot = Output.Pose.GetComponentSpaceTransform(BoneIndices[ParentInChain]).GetRotation();
+					SimRotation = DeltaRot * OriginalTransform.GetRotation();
+				}
+			}
+		}
+
+		FTransform FinalTransform(SimRotation, SimPos, OriginalTransform.GetScale3D());
 
 		// Blend with original animation
 		if (BlendAlpha < 1.f - UE_SMALL_NUMBER)
 		{
-			const FTransform OriginalTransform = Output.Pose.GetComponentSpaceTransform(BoneIndices[i]);
-			Interped.Blend(OriginalTransform, Interped, BlendAlpha);
+			FinalTransform.Blend(OriginalTransform, FinalTransform, BlendAlpha);
 		}
 
-		OutBoneTransforms.Add(FBoneTransform(BoneIndices[i], Interped));
+		OutBoneTransforms.Add(FBoneTransform(BoneIndices[i], FinalTransform));
 	}
 
 	// UE requires OutBoneTransforms sorted by BoneIndex (ascending)
