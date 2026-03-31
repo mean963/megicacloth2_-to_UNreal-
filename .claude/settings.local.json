@@ -11,7 +11,9 @@
       "Bash(find \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/DemoScenes/URP\" -name \"*.unity\")",
       "Bash(find \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/UnityChan\" -name \"*UnityChanKAGURA*\" -type f)",
       "Bash(ls -la \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/UnityChan/UnityChanKAGURA/\")",
-      "Bash(bash \"C:\\\\Users\\\\worker\\\\.claude\\\\plugins\\\\cache\\\\superpowers-marketplace\\\\superpowers\\\\5.0.6\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh\" --project-dir \"D:\\\\AI_document\\\\physics_plugins\")"
+      "Bash(bash \"C:\\\\Users\\\\worker\\\\.claude\\\\plugins\\\\cache\\\\superpowers-marketplace\\\\superpowers\\\\5.0.6\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh\" --project-dir \"D:\\\\AI_document\\\\physics_plugins\")",
+      "Bash(grep -rn SimulationManager D:/AI_document/physics_plugins/MagicaClothUE/Source/ --include=*.h --include=*.cpp)",
+      "Bash(\"C:/Program Files/Epic Games/UE_5.6/Engine/Build/BatchFiles/RunUAT.bat\" BuildPlugin -Plugin=\"D:/AI_document/physics_plugins/MagicaClothUE/MagicaClothUE.uplugin\" -Package=\"D:/AI_document/physics_plugins/MagicaClothUE_Output\" -TargetPlatforms=Win64 -Rocket)"
     ]
   }
 }

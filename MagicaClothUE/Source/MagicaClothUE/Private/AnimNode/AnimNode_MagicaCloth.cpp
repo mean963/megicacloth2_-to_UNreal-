@@ -1040,7 +1040,7 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	}
 
 	const float InterpAlpha = SimManager->GetInterpolationAlpha();
-	const float BlendAlpha = FAnimWeight::IsRelevant(ActualAlpha) ? ActualAlpha : 1.f;
+	const float BlendAlpha = FAnimWeight::IsRelevant(this->ActualAlpha) ? this->ActualAlpha : 1.f;
 
 	// Skip pinned root bones
 	const int32 SkipCount = this->bMultiChainMode
