@@ -17,6 +17,30 @@ class MAGICACLOTHUEEDITOR_API UAnimGraphNode_MagicaCloth : public UAnimGraphNode
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FAnimNode_MagicaCloth Node;
 
+	// ── Debug Draw Toggles ─────────────────────────────────────────────────
+	// These mirror KawaiiPhysics debug toggle pattern.
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawBone = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawSphereLimit = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawCapsuleLimit = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawBoxLimit = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawPlanarLimit = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawConstraint = true;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bEnableDebugDrawWind = false;
+
 	// UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
