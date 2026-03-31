@@ -94,10 +94,8 @@ void FMagicaVirtualMesh::BuildFromMultiChain(
 			ChildIndices[Idx].Reset();
 			ChildIndices[Parent].Add(Idx);
 
-			// First bone of each chain is Fixed, rest are Move
-			Attributes[Idx].Flags = (j == 0)
-				? EMagicaVertexFlag::Fixed
-				: EMagicaVertexFlag::Move;
+			// All chain bones are Move (only shared roots are Fixed)
+			Attributes[Idx].Flags = EMagicaVertexFlag::Move;
 
 			RestLocalOffsets[Idx] = AllTransforms[Parent].InverseTransformPosition(Positions[Idx]);
 			RestLocalRotations[Idx] = AllTransforms[Parent].GetRotation().Inverse() * AllTransforms[Idx].GetRotation();
