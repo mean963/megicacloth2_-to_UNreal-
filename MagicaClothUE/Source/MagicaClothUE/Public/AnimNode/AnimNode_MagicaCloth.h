@@ -147,7 +147,7 @@ struct MAGICACLOTHUE_API FAnimNode_MagicaCloth : public FAnimNode_SkeletalContro
 	TObjectPtr<UPhysicsAsset> PhysicsAssetForLimits;
 
 	/** Only include PA bodies attached to these bones. If empty, ALL PA bodies are used. */
-	UPROPERTY(EditAnywhere, Category = "Limits", meta = (PinHiddenByDefault, EditCondition = "PhysicsAssetForLimits != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Limits", meta = (PinHiddenByDefault))
 	TArray<FBoneReference> PhysicsAssetBoneFilter;
 
 	/** Friction applied during collision response. */

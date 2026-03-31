@@ -8,7 +8,6 @@
 #include "Core/ClothTypes.h"
 #include "MagicaClothComponent.generated.h"
 
-class FClothSimThread;
 class UMagicaColliderComponent;
 
 /** Simulation update mode — matches Magica Cloth 2's UpdateMode concept. */
@@ -110,8 +109,6 @@ public:
 		FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-	TSharedPtr<FClothSimThread> SimThread;
-
 	FMagicaTeamId TeamId = MAGICA_INVALID_TEAM_ID;
 
 	void UpdateColliderTransforms();

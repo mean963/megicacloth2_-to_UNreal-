@@ -1,9 +1,9 @@
 #include "MagicaClothComponent.h"
-#include "Simulation/FClothSimThread.h"
 #include "Colliders/MagicaColliderComponent.h"
 #include "Math/UnrealMathUtility.h"
 #include "Core/MagicaClothSubsystem.h"
 #include "Core/TeamManager.h"
+#include "Simulation/SimulationManager.h"
 
 UMagicaClothComponent::UMagicaClothComponent()
 {
@@ -26,22 +26,16 @@ void UMagicaClothComponent::BeginPlay()
 
 void UMagicaClothComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UWorld* World = GetWorld())
+	if (TeamId != MAGICA_INVALID_TEAM_ID)
 	{
-		if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+		if (UWorld* World = GetWorld())
 		{
-			if (TeamId != MAGICA_INVALID_TEAM_ID)
+			if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
 			{
 				Subsystem->GetTeamManager()->DestroyTeam(TeamId);
-				TeamId = MAGICA_INVALID_TEAM_ID;
 			}
 		}
-	}
-
-	if (SimThread.IsValid())
-	{
-		SimThread->Stop();
-		SimThread.Reset();
+		TeamId = MAGICA_INVALID_TEAM_ID;
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -52,65 +46,71 @@ void UMagicaClothComponent::TickComponent(
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (!SimThread.IsValid())
+	if (TeamId == MAGICA_INVALID_TEAM_ID)
 	{
 		return;
 	}
 
 	UpdateColliderTransforms();
-
-	// Adaptive Hz: simple CPU-load heuristic
-	if (bAdaptiveHz)
-	{
-		const float CurrentHz = SimThread->SimulationHz;
-		const float FrameBudget = 1.f / CurrentHz;
-
-		if (DeltaTime > FrameBudget * 1.5f && CurrentHz > MinSimulationHz)
-		{
-			SimThread->SetTargetHz(FMath::Max(CurrentHz - 10.f, MinSimulationHz));
-		}
-		else if (DeltaTime < FrameBudget * 0.8f && CurrentHz < SimulationHz)
-		{
-			SimThread->SetTargetHz(FMath::Min(CurrentHz + 5.f, SimulationHz));
-		}
-	}
 }
 
 void UMagicaClothComponent::ResetSimulation()
 {
-	if (SimThread.IsValid())
+	if (TeamId != MAGICA_INVALID_TEAM_ID)
 	{
-		TArray<FTransform> EmptyPose;
-		SimThread->RequestReset(EmptyPose);
+		if (UWorld* World = GetWorld())
+		{
+			if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+			{
+				TArray<FVector> EmptyPose;
+				Subsystem->GetSimulationManager()->RequestReset(TeamId, EmptyPose);
+			}
+		}
 	}
 }
 
 void UMagicaClothComponent::SetSimulationHz(float NewHz)
 {
 	SimulationHz = FMath::Clamp(NewHz, MinSimulationHz, 120.f);
-	if (SimThread.IsValid())
+	if (UWorld* World = GetWorld())
 	{
-		SimThread->SetTargetHz(SimulationHz);
+		if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+		{
+			Subsystem->GetSimulationManager()->SetTargetHz(SimulationHz);
+		}
 	}
 }
 
 bool UMagicaClothComponent::IsSimulationRunning() const
 {
-	return SimThread.IsValid() && SimThread->IsRunning();
+	return TeamId != MAGICA_INVALID_TEAM_ID;
 }
 
 void UMagicaClothComponent::UpdateColliderTransforms()
 {
-	if (!SimThread.IsValid())
+	if (TeamId == MAGICA_INVALID_TEAM_ID)
 	{
 		return;
 	}
 
-	for (int32 i = 0; i < Colliders.Num(); ++i)
+	TArray<FTransform> Transforms;
+	Transforms.Reserve(Colliders.Num());
+	for (const auto& Collider : Colliders)
 	{
-		if (Colliders[i] && SimThread->Solver.Colliders.IsValidIndex(i))
+		if (Collider)
 		{
-			Colliders[i]->UpdateShapeTransform(SimThread->Solver.Colliders[i]);
+			Transforms.Add(Collider->GetComponentTransform());
+		}
+	}
+
+	if (Transforms.Num() > 0)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+			{
+				Subsystem->GetSimulationManager()->UpdateColliderTransforms(TeamId, Transforms);
+			}
 		}
 	}
 }

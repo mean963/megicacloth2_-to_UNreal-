@@ -14,6 +14,12 @@
 		"Linux",
 		"Mac"
 	],
+	"Plugins": [
+		{
+			"Name": "StructUtils",
+			"Enabled": true
+		}
+	],
 	"Modules": [
 		{
 			"Name": "MagicaClothUE",
