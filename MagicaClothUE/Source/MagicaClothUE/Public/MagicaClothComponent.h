@@ -5,6 +5,7 @@
 #include "Math/Vector.h"
 #include "Templates/SharedPointer.h"
 #include "Components/ActorComponent.h"
+#include "Core/ClothTypes.h"
 #include "MagicaClothComponent.generated.h"
 
 class FClothSimThread;
@@ -110,6 +111,8 @@ public:
 
 private:
 	TSharedPtr<FClothSimThread> SimThread;
+
+	FMagicaTeamId TeamId = MAGICA_INVALID_TEAM_ID;
 
 	void UpdateColliderTransforms();
 };

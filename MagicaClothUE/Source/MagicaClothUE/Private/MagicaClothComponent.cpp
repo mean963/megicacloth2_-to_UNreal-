@@ -2,6 +2,8 @@
 #include "Simulation/FClothSimThread.h"
 #include "Colliders/MagicaColliderComponent.h"
 #include "Math/UnrealMathUtility.h"
+#include "Core/MagicaClothSubsystem.h"
+#include "Core/TeamManager.h"
 
 UMagicaClothComponent::UMagicaClothComponent()
 {
@@ -12,10 +14,30 @@ UMagicaClothComponent::UMagicaClothComponent()
 void UMagicaClothComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	if (UWorld* World = GetWorld())
+	{
+		if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+		{
+			TeamId = Subsystem->GetTeamManager()->CreateTeam();
+			Subsystem->EnsureSimulationRunning();
+		}
+	}
 }
 
 void UMagicaClothComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UWorld* World = GetWorld())
+	{
+		if (UMagicaClothSubsystem* Subsystem = World->GetSubsystem<UMagicaClothSubsystem>())
+		{
+			if (TeamId != MAGICA_INVALID_TEAM_ID)
+			{
+				Subsystem->GetTeamManager()->DestroyTeam(TeamId);
+				TeamId = MAGICA_INVALID_TEAM_ID;
+			}
+		}
+	}
+
 	if (SimThread.IsValid())
 	{
 		SimThread->Stop();

@@ -17,7 +17,9 @@ public class MagicaClothUE : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"AnimGraphRuntime",
-			"PhysicsCore"
+			"PhysicsCore",
+			"StructUtils",
+			"GameplayTags"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
