@@ -10,12 +10,13 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Core/ClothTypes.h"
 #include "Colliders/ColliderLimits.h"
+#include "Simulation/SimulationManager.h"
+#include "VirtualMesh/VirtualMesh.h"
 #include "AnimNode_MagicaCloth.generated.h"
 
 class UPhysicsAsset;
 class UMagicaLimitsDataAsset;
 class UMagicaClothSubsystem;
-class FMagicaSimulationManager;
 class FMagicaVirtualMesh;
 
 /**
@@ -246,7 +247,7 @@ private:
 	// ── Subsystem integration ──────────────────────────────
 	FMagicaTeamId TeamId = MAGICA_INVALID_TEAM_ID;
 	FMagicaVirtualMesh* VirtualMeshPtr = nullptr;  // Owned by this node
-	TUniquePtr<FMagicaVirtualMesh> VirtualMeshOwned;
+	TSharedPtr<FMagicaVirtualMesh> VirtualMeshOwned;
 
 	// ── Single-chain data ──────────────────────────────────
 	TArray<FCompactPoseBoneIndex> BoneChainIndices;

@@ -1,4 +1,5 @@
 #include "MagicaClothComponent.h"
+#include "Engine/World.h"
 #include "Colliders/MagicaColliderComponent.h"
 #include "Math/UnrealMathUtility.h"
 #include "Core/MagicaClothSubsystem.h"

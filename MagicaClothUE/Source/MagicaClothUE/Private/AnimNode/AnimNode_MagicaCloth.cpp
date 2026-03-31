@@ -1,4 +1,5 @@
 #include "AnimNode/AnimNode_MagicaCloth.h"
+#include "Engine/World.h"
 #include "Core/MagicaClothSubsystem.h"
 #include "Simulation/SimulationManager.h"
 #include "Simulation/FPBDSolver.h"
@@ -822,7 +823,7 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 	}
 
 	// Build VirtualMesh
-	VirtualMeshOwned = MakeUnique<FMagicaVirtualMesh>();
+	VirtualMeshOwned = MakeShared<FMagicaVirtualMesh>();
 	VirtualMeshPtr = VirtualMeshOwned.Get();
 
 	if (bMultiChainMode)
