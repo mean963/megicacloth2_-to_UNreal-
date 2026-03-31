@@ -914,6 +914,18 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 	BuildDataAssetColliders(Context, *Team);
 	BuildPhysicsAssetColliders(Context, *Team);
 
+	// Feed initial positions so sim starts from the right place
+	TArray<FVector> InitPositions;
+	InitPositions.SetNum(NumBones);
+	for (int32 i = 0; i < NumBones; ++i)
+	{
+		InitPositions[i] = InitTransforms[i].GetTranslation();
+	}
+	SimManager->UpdateAnimPositions(TeamId, InitPositions);
+
+	// Write initial state to DoubleBuffer so first read isn't empty
+	Team->DoubleBuffer.Write(InitTransforms);
+
 	// Ensure simulation thread is running
 	Subsystem->EnsureSimulationRunning();
 	SimManager->SetTargetHz(static_cast<float>(TargetFramerate));
@@ -1047,7 +1059,24 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	// Read results from double buffer
 	const TArray<FTransform>& SimResult = SimManager->ReadResults(TeamId);
 
+	// If sim hasn't produced results yet, use animation positions directly
 	if (SimResult.Num() != NumBones)
+	{
+		// Feed positions but don't override bones — let animation play normally
+		return;
+	}
+
+	// Verify simulation results are valid (not all zero)
+	bool bHasValidResults = false;
+	for (int32 i = 0; i < SimResult.Num(); ++i)
+	{
+		if (!SimResult[i].GetTranslation().IsNearlyZero(1.0f))
+		{
+			bHasValidResults = true;
+			break;
+		}
+	}
+	if (!bHasValidResults)
 	{
 		return;
 	}
