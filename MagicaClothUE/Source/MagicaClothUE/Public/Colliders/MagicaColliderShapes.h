@@ -4,13 +4,15 @@
 #include "Math/Vector.h"
 #include "Math/Transform.h"
 #include "Math/UnrealMathUtility.h"
+#include "Core/ClothTypes.h"
 
 /** Collider shape type identifier (for debug drawing and type-safe casting). */
 enum class EMagicaColliderShapeType : uint8
 {
 	Sphere,
 	Capsule,
-	Box
+	Box,
+	Plane
 };
 
 /**
@@ -21,6 +23,7 @@ struct MAGICACLOTHUE_API FMagicaColliderShape
 	FTransform WorldTransform;
 	float Friction = 0.1f;
 	EMagicaColliderShapeType ShapeType = EMagicaColliderShapeType::Sphere;
+	EMagicaLimitType LimitType = EMagicaLimitType::Outer;
 
 	virtual ~FMagicaColliderShape() = default;
 	virtual void ResolveCollision(FVector& InOutPosition) const = 0;
@@ -153,6 +156,30 @@ struct MAGICACLOTHUE_API FMagicaBoxCollider : public FMagicaColliderShape
 			}
 
 			InOutPosition = WorldTransform.TransformPosition(LocalPos);
+		}
+	}
+};
+
+/** Plane collider — prevents particles from crossing a plane. */
+struct MAGICACLOTHUE_API FMagicaPlaneCollider : public FMagicaColliderShape
+{
+	FPlane Plane = FPlane(FVector::UpVector, 0.0f);
+
+	FMagicaPlaneCollider()
+	{
+		ShapeType = EMagicaColliderShapeType::Plane;
+	}
+
+	virtual void ResolveCollision(FVector& InOutPosition) const override
+	{
+		const FVector WorldNormal = WorldTransform.GetRotation().RotateVector(
+			FVector(Plane.X, Plane.Y, Plane.Z));
+		const FVector WorldPoint = WorldTransform.GetTranslation();
+		const float Dist = FVector::DotProduct(InOutPosition - WorldPoint, WorldNormal);
+
+		if (Dist < 0.0f)
+		{
+			InOutPosition -= WorldNormal * Dist;
 		}
 	}
 };
