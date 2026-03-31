@@ -923,13 +923,7 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 	}
 	SimManager->UpdateAnimPositions(TeamId, InitPositions);
 
-	// Write initial state to DoubleBuffer so first read isn't empty
-	Team->DoubleBuffer.Write(InitTransforms);
-
-	// Ensure simulation thread is running
-	Subsystem->EnsureSimulationRunning();
-	SimManager->SetTargetHz(static_cast<float>(TargetFramerate));
-	SimManager->MaxStepsPerFrame = MaxStepsPerFrame;
+	// Note: simulation runs synchronously in EvaluateSkeletalControl, no worker thread needed
 
 	PrevResults = InitTransforms;
 	bInitialized = true;
@@ -1018,70 +1012,48 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 		return;
 	}
 
-	// Feed current animation positions to the sim thread
+	// === Synchronous simulation (run PBD directly, no worker thread) ===
+
+	// 1. Update fixed particles from current animation pose
 	TArray<FVector> CurrentAnimPositions;
 	CurrentAnimPositions.SetNum(NumBones);
 	for (int32 i = 0; i < NumBones; ++i)
 	{
 		CurrentAnimPositions[i] = Output.Pose.GetComponentSpaceTransform(BoneIndices[i]).GetTranslation();
 	}
-	SimManager->UpdateAnimPositions(TeamId, CurrentAnimPositions);
+	Team->Solver.UpdateFixedParticles(CurrentAnimPositions);
 
-	// Update collider transforms from current pose
-	UpdateColliderTransformsFromPose(Output);
+	// 2. Update collider transforms
+	for (const FColliderBoneMapping& Mapping : ColliderBoneMappings)
+	{
+		if (Mapping.ColliderIndex >= 0 && Mapping.ColliderIndex < Team->Solver.Colliders.Num()
+			&& Mapping.CompactBoneIndex != FCompactPoseBoneIndex(INDEX_NONE))
+		{
+			const FTransform BoneCS = Output.Pose.GetComponentSpaceTransform(Mapping.CompactBoneIndex);
+			Team->Solver.Colliders[Mapping.ColliderIndex]->WorldTransform = Mapping.LocalOffset * BoneCS;
+		}
+	}
 
-	// Live-update solver parameters
+	// 3. Update solver parameters
 	Team->Solver.Gravity = Gravity;
 	Team->Solver.Damping = PhysicsSettings.Damping;
 	Team->Solver.MaxVelocity = PhysicsSettings.MaxVelocity;
 	Team->Solver.SolverIterations = SolverIterations;
-	SimManager->SetTargetHz(static_cast<float>(TargetFramerate));
 
-	// Update inertia constraint origin if set
-	if (Team->Solver.InertiaConstraint.IsValid())
+	// 4. Step simulation synchronously
+	const float DeltaTime = Output.AnimInstanceProxy->GetDeltaSeconds();
+	if (DeltaTime > UE_SMALL_NUMBER)
 	{
-		USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
-		if (SkelComp)
-		{
-			const FTransform CompTransform = SkelComp->GetComponentTransform();
-			Team->Solver.InertiaConstraint->UpdateOrigin(
-				CompTransform.GetTranslation() * SkelCompMoveScale,
-				CompTransform.GetRotation());
-
-			// Handle teleport
-			if (Team->Solver.InertiaConstraint->CheckTeleport())
-			{
-				SimManager->RequestReset(TeamId, CurrentAnimPositions);
-			}
-		}
+		Team->Solver.Step(DeltaTime);
 	}
 
-	// Read results from double buffer
-	const TArray<FTransform>& SimResult = SimManager->ReadResults(TeamId);
-
-	// If sim hasn't produced results yet, use animation positions directly
-	if (SimResult.Num() != NumBones)
-	{
-		// Feed positions but don't override bones — let animation play normally
-		return;
-	}
-
-	// Verify simulation results are valid (not all zero)
-	bool bHasValidResults = false;
-	for (int32 i = 0; i < SimResult.Num(); ++i)
-	{
-		if (!SimResult[i].GetTranslation().IsNearlyZero(1.0f))
-		{
-			bHasValidResults = true;
-			break;
-		}
-	}
-	if (!bHasValidResults)
+	// 5. Read results directly from solver
+	const TArray<FVector>& SimPositions = Team->Solver.GetPositions();
+	if (SimPositions.Num() != NumBones)
 	{
 		return;
 	}
 
-	const float InterpAlpha = SimManager->GetInterpolationAlpha();
 	const float BlendAlpha = FAnimWeight::IsRelevant(ActualAlpha) ? ActualAlpha : 1.f;
 
 	// Skip pinned root bones
@@ -1096,20 +1068,12 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 			continue;
 		}
 
-		// Interpolate simulation position
-		FVector SimPos;
-		if (PrevResults.IsValidIndex(i))
-		{
-			SimPos = FMath::Lerp(PrevResults[i].GetTranslation(), SimResult[i].GetTranslation(), InterpAlpha);
-		}
-		else
-		{
-			SimPos = SimResult[i].GetTranslation();
-		}
+		// Get simulation position directly from solver
+		const FVector SimPos = SimPositions[i];
 
 		// Reconstruct bone rotation from parent-child direction
 		const FTransform OriginalTransform = Output.Pose.GetComponentSpaceTransform(BoneIndices[i]);
-		FQuat SimRotation = OriginalTransform.GetRotation(); // default: keep original rotation
+		FQuat SimRotation = OriginalTransform.GetRotation();
 
 		// Find parent index in the bone chain
 		int32 ParentInChain = INDEX_NONE;
@@ -1120,32 +1084,20 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 
 		if (ParentInChain != INDEX_NONE && ParentInChain < NumBones)
 		{
-			// Get parent's simulated position
-			FVector ParentSimPos = SimResult[ParentInChain].GetTranslation();
-			if (PrevResults.IsValidIndex(ParentInChain))
-			{
-				ParentSimPos = FMath::Lerp(PrevResults[ParentInChain].GetTranslation(),
-					SimResult[ParentInChain].GetTranslation(), InterpAlpha);
-			}
-
-			// Direction from parent to this bone
+			const FVector ParentSimPos = SimPositions[ParentInChain];
 			const FVector Dir = SimPos - ParentSimPos;
 			const float DirLen = Dir.Size();
 
 			if (DirLen > UE_SMALL_NUMBER)
 			{
-				// Get original direction from parent to child
 				const FVector OrigParentPos = Output.Pose.GetComponentSpaceTransform(BoneIndices[ParentInChain]).GetTranslation();
 				const FVector OrigDir = OriginalTransform.GetTranslation() - OrigParentPos;
 				const float OrigDirLen = OrigDir.Size();
 
 				if (OrigDirLen > UE_SMALL_NUMBER)
 				{
-					// Compute rotation delta from original to simulated direction
 					const FQuat DeltaRot = FQuat::FindBetweenNormals(
 						OrigDir / OrigDirLen, Dir / DirLen);
-					// Apply delta to parent's original rotation for this bone's rotation
-					const FQuat ParentOrigRot = Output.Pose.GetComponentSpaceTransform(BoneIndices[ParentInChain]).GetRotation();
 					SimRotation = DeltaRot * OriginalTransform.GetRotation();
 				}
 			}
@@ -1165,7 +1117,12 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	// UE requires OutBoneTransforms sorted by BoneIndex (ascending)
 	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 
-	PrevResults = SimResult;
+	// Store current sim positions as PrevResults for next frame
+	PrevResults.SetNum(NumBones);
+	for (int32 i = 0; i < NumBones; ++i)
+	{
+		PrevResults[i].SetTranslation(SimPositions[i]);
+	}
 
 #if ENABLE_DRAW_DEBUG
 	if (bShowDebug)
