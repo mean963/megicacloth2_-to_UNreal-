@@ -1,0 +1,8 @@
+MagicaClothUE_Output/
+_TempHostProject/
+.superpowers/
+*.pdb
+*.dll
+Intermediate/
+Saved/
+Binaries/
