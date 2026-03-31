@@ -1,0 +1,8 @@
+{
+	"BuildId": "43139311",
+	"Modules": 
+	{
+		"MagicaClothUE": "UnrealEditor-MagicaClothUE.dll",
+		"MagicaClothUEEditor": "UnrealEditor-MagicaClothUEEditor.dll"
+	}
+}

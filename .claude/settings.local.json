@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/Epic Games/UE_5.6/Engine/Binaries/Win64/**)",
+      "Read(//c/Program Files/Epic Games/UE_5.6/Engine/Binaries/DotNET/UnrealBuildTool/**)",
+      "Bash(ls \"C:/Program Files/Epic Games/UE_5.6/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool\"*)",
+      "Bash(\"C:/Program Files/Epic Games/UE_5.6/Engine/Build/BatchFiles/RunUAT.bat\" BuildPlugin -Plugin=\"D:/AI_document/physics_plugins/MagicaClothUE/MagicaClothUE.uplugin\" -Package=\"D:/AI_document/physics_plugins/MagicaClothUE_Built\" -TargetPlatforms=Win64 -Rocket)",
+      "Bash(rm -rf \"C:/Program Files/Epic Games/UE_5.6/Engine/Plugins/Animation/MagicaClothUE\")",
+      "Bash(cp -r \"D:/AI_document/physics_plugins/MagicaClothUE\" \"C:/Program Files/Epic Games/UE_5.6/Engine/Plugins/Animation/MagicaClothUE\")",
+      "Bash(xargs ls:*)",
+      "Bash(find \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/DemoScenes/URP\" -name \"*.unity\")",
+      "Bash(find \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/UnityChan\" -name \"*UnityChanKAGURA*\" -type f)",
+      "Bash(ls -la \"E:/unity_project/cloth_TEST/Assets/MagicaCloth2/Example \\(Can be deleted\\)/UnityChan/UnityChanKAGURA/\")",
+      "Bash(bash \"C:\\\\Users\\\\worker\\\\.claude\\\\plugins\\\\cache\\\\superpowers-marketplace\\\\superpowers\\\\5.0.6\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh\" --project-dir \"D:\\\\AI_document\\\\physics_plugins\")"
+    ]
+  }
+}
