@@ -1,104 +1,77 @@
+// MagicaClothUE/Public/Simulation/FPBDSolver.h
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Array.h"
-#include "Math/Vector.h"
-#include "Math/Quat.h"
-#include "Math/Transform.h"
-#include "Templates/SharedPointer.h"
+#include "Core/ClothTypes.h"
+#include "Simulation/Constraints/ConstraintBase.h"
 
-struct FClothConstraintBase;
+class FMagicaVirtualMesh;
 struct FMagicaColliderShape;
-
-/**
- * Single particle in the PBD simulation.
- * Each particle maps 1:1 to a bone.
- */
-struct FPBDParticle
-{
-	FVector Position          = FVector::ZeroVector;
-	FVector PrevPosition      = FVector::ZeroVector;
-	FVector Velocity          = FVector::ZeroVector;
-	FVector PredictedPosition = FVector::ZeroVector;
-	float InvMass             = 1.0f;   // 0 = pinned (fixed), > 0 = free
-	int32 BoneIndex           = INDEX_NONE;
-	int32 ChainId             = INDEX_NONE; // which chain this particle belongs to (-1 = shared root)
-};
-
-/** Per-chain range within the flat particle array. */
-struct FChainRange
-{
-	int32 StartIndex  = 0;  // first particle index of this chain (excluding shared root)
-	int32 Count       = 0;  // number of particles in this chain
-};
+struct FMagicaConstraintBase;
+struct FMagicaDistanceConstraint;
+struct FMagicaBendingConstraint;
+struct FMagicaTetherConstraint;
+struct FMagicaInertiaConstraint;
+struct FMagicaAngleConstraint;
 
 /**
  * Position Based Dynamics solver.
- * Supports single-chain AND multi-chain (skirt) modes.
+ * Generic: operates on flat particle arrays (works for BoneCloth and MeshCloth).
+ * Constraint objects are built by the caller and owned by the solver.
  */
-class MAGICACLOTHUE_API FPBDSolver
+class MAGICACLOTHUE_API FMagicaPBDSolver
 {
 public:
-	FPBDSolver();
-	~FPBDSolver();
+	FMagicaPBDSolver();
+	~FMagicaPBDSolver();
 
-	/** Initialize from a single bone chain. */
-	void Initialize(const TArray<FTransform>& BoneTransforms, const TArray<int32>& BoneIndices, int32 FixedCount);
-
-	/** Initialize from multiple chains sharing a common root.
-	 *  AllTransforms[0..SharedRootCount-1] = shared root bones (pinned).
-	 *  Followed by concatenated chain bones.
-	 *  InChainRanges describes where each chain starts/ends in the particle array. */
-	void InitializeMultiChain(
-		const TArray<FTransform>& AllTransforms,
-		const TArray<int32>& AllBoneIndices,
-		int32 InSharedRootCount,
-		const TArray<FChainRange>& InChainRanges);
+	/** Initialize from a VirtualMesh. Sets up particle arrays. */
+	void Initialize(const FMagicaVirtualMesh& Mesh);
 
 	/** Main simulation step. */
 	void Step(float DeltaTime);
 
-	/** Update root/fixed bone transforms from animation. */
-	void UpdateFixedParticles(const TArray<FTransform>& AnimTransforms);
+	/** Update pinned particle positions from animation. */
+	void UpdateFixedParticles(const TArray<FVector>& AnimPositions);
 
-	/** Get current particle transforms as bone transforms. */
-	void GetResultTransforms(TArray<FTransform>& OutTransforms) const;
+	/** Get current particle positions. */
+	const TArray<FVector>& GetPositions() const { return Positions; }
 
-	/** Reset to rest pose. */
-	void ResetToRestPose(const TArray<FTransform>& RestTransforms);
+	/** Get particle count. */
+	int32 GetParticleCount() const { return Positions.Num(); }
 
-	// --- Simulation Parameters ---
-	FVector Gravity        = FVector(0.0, 0.0, -980.0);
-	float Damping          = 0.1f;
-	float MaxVelocity      = 5000.f;
-	int32 SolverIterations = 4;
+	/** Reset all particles to given positions and zero velocities. */
+	void Reset(const TArray<FVector>& RestPositions);
 
-	// --- Constraints ---
-	TArray<TSharedPtr<FClothConstraintBase>> Constraints;
+	// --- Parameters ---
+	FVector Gravity = FVector(0.0, 0.0, -980.0);
+	float Damping = 0.1f;
+	float MaxVelocity = 5000.0f;
+	int32 SolverIterations = 5;
+
+	// --- Constraints (owned by solver, built by caller) ---
+	TArray<TSharedPtr<FMagicaConstraintBase>> PreCollisionConstraints;
+	TArray<TSharedPtr<FMagicaConstraintBase>> PostCollisionConstraints;
+	TSharedPtr<FMagicaInertiaConstraint> InertiaConstraint;
 
 	// --- Colliders ---
 	TArray<TSharedPtr<FMagicaColliderShape>> Colliders;
 
-	// --- Particles ---
-	TArray<FPBDParticle> Particles;
-
-	// --- Multi-chain info ---
-	TArray<FChainRange> ChainRanges;
-	int32 SharedRootCount = 0;
-
-	// Rest-pose local offsets for rotation reconstruction
-	TArray<FVector> RestLocalOffsets;
-	TArray<FQuat>   RestLocalRotations;
+	// --- Particle data (SoA) ---
+	TArray<FVector> Positions;
+	TArray<FVector> PrevPositions;
+	TArray<FVector> PredictedPositions;
+	TArray<FVector> Velocities;
+	TArray<float> InvMasses;
+	TArray<float> Depths;
 
 private:
-	void PredictPositions(float DeltaTime);
-	void SolveConstraints();
+	void PredictPositions(float Dt);
+	void SolveConstraints(TArray<TSharedPtr<FMagicaConstraintBase>>& Constraints);
 	void SolveCollisions();
-	void UpdateVelocities(float DeltaTime);
+	void UpdateVelocities(float Dt);
 	void ClampVelocities();
+	void ApplyDamping();
 
-	/** Get result transforms for multi-chain mode (per-chain rotation reconstruction). */
-	void GetResultTransformsMultiChain(TArray<FTransform>& OutTransforms) const;
-
-	float InvDt = 0.f;
+	FMagicaParticleArrays MakeParticleArrays();
 };

@@ -1,353 +1,181 @@
+// MagicaClothUE/Private/Simulation/FPBDSolver.cpp
 #include "Simulation/FPBDSolver.h"
-#include "Simulation/FClothConstraints.h"
+#include "VirtualMesh/VirtualMesh.h"
+#include "Simulation/Constraints/InertiaConstraint.h"
 #include "Colliders/MagicaColliderShapes.h"
-#include "Math/UnrealMathUtility.h"
 
-FPBDSolver::FPBDSolver() = default;
-FPBDSolver::~FPBDSolver() = default;
+FMagicaPBDSolver::FMagicaPBDSolver() = default;
+FMagicaPBDSolver::~FMagicaPBDSolver() = default;
 
-// ── Single-Chain Initialize ─────────────────────────────
-
-void FPBDSolver::Initialize(const TArray<FTransform>& BoneTransforms, const TArray<int32>& BoneIndices, int32 FixedCount)
+void FMagicaPBDSolver::Initialize(const FMagicaVirtualMesh& Mesh)
 {
-	ChainRanges.Empty();
-	SharedRootCount = 0;
+	const int32 Count = Mesh.GetVertexCount();
 
-	const int32 Count = BoneTransforms.Num();
-	Particles.SetNum(Count);
-	RestLocalOffsets.SetNum(Count);
-	RestLocalRotations.SetNum(Count);
+	Positions.SetNum(Count);
+	PrevPositions.SetNum(Count);
+	PredictedPositions.SetNum(Count);
+	Velocities.SetNumZeroed(Count);
+	InvMasses.SetNum(Count);
+	Depths.SetNum(Count);
 
 	for (int32 i = 0; i < Count; ++i)
 	{
-		FPBDParticle& P = Particles[i];
-		P.Position          = BoneTransforms[i].GetTranslation();
-		P.PrevPosition      = P.Position;
-		P.Velocity          = FVector::ZeroVector;
-		P.PredictedPosition = P.Position;
-		P.BoneIndex         = BoneIndices.IsValidIndex(i) ? BoneIndices[i] : i;
-		P.InvMass           = (i < FixedCount) ? 0.f : 1.f;
-		P.ChainId           = 0; // single chain = chain 0
-
-		if (i > 0)
-		{
-			RestLocalOffsets[i]   = BoneTransforms[i - 1].InverseTransformPosition(BoneTransforms[i].GetTranslation());
-			RestLocalRotations[i] = BoneTransforms[i - 1].GetRotation().Inverse() * BoneTransforms[i].GetRotation();
-		}
-		else
-		{
-			RestLocalOffsets[i]   = FVector::ZeroVector;
-			RestLocalRotations[i] = FQuat::Identity;
-		}
+		Positions[i] = Mesh.Positions[i];
+		PrevPositions[i] = Mesh.Positions[i];
+		PredictedPositions[i] = Mesh.Positions[i];
+		InvMasses[i] = Mesh.Attributes[i].IsFixed() ? 0.0f : (1.0f / 1.0f); // Default mass 1.0
+		Depths[i] = Mesh.Attributes[i].Depth;
 	}
 }
 
-// ── Multi-Chain Initialize ──────────────────────────────
-
-void FPBDSolver::InitializeMultiChain(
-	const TArray<FTransform>& AllTransforms,
-	const TArray<int32>& AllBoneIndices,
-	int32 InSharedRootCount,
-	const TArray<FChainRange>& InChainRanges)
+FMagicaParticleArrays FMagicaPBDSolver::MakeParticleArrays()
 {
-	SharedRootCount = InSharedRootCount;
-	ChainRanges = InChainRanges;
-
-	const int32 Count = AllTransforms.Num();
-	Particles.SetNum(Count);
-	RestLocalOffsets.SetNum(Count);
-	RestLocalRotations.SetNum(Count);
-
-	// Initialize shared root particles (pinned)
-	for (int32 i = 0; i < SharedRootCount && i < Count; ++i)
-	{
-		FPBDParticle& P = Particles[i];
-		P.Position          = AllTransforms[i].GetTranslation();
-		P.PrevPosition      = P.Position;
-		P.Velocity          = FVector::ZeroVector;
-		P.PredictedPosition = P.Position;
-		P.BoneIndex         = AllBoneIndices.IsValidIndex(i) ? AllBoneIndices[i] : i;
-		P.InvMass           = 0.f; // pinned
-		P.ChainId           = INDEX_NONE; // shared root
-
-		RestLocalOffsets[i]   = FVector::ZeroVector;
-		RestLocalRotations[i] = FQuat::Identity;
-	}
-
-	// Initialize per-chain particles
-	for (int32 ChainIdx = 0; ChainIdx < ChainRanges.Num(); ++ChainIdx)
-	{
-		const FChainRange& Range = ChainRanges[ChainIdx];
-
-		for (int32 j = 0; j < Range.Count; ++j)
-		{
-			const int32 ParticleIdx = Range.StartIndex + j;
-			if (!AllTransforms.IsValidIndex(ParticleIdx))
-			{
-				continue;
-			}
-
-			FPBDParticle& P = Particles[ParticleIdx];
-			P.Position          = AllTransforms[ParticleIdx].GetTranslation();
-			P.PrevPosition      = P.Position;
-			P.Velocity          = FVector::ZeroVector;
-			P.PredictedPosition = P.Position;
-			P.BoneIndex         = AllBoneIndices.IsValidIndex(ParticleIdx) ? AllBoneIndices[ParticleIdx] : ParticleIdx;
-			P.InvMass           = 1.f; // free
-			P.ChainId           = ChainIdx;
-
-			// Compute rest-pose local offset relative to parent
-			int32 ParentIdx;
-			if (j == 0)
-			{
-				// First particle in chain → parent is shared root (particle 0)
-				ParentIdx = 0;
-			}
-			else
-			{
-				ParentIdx = ParticleIdx - 1;
-			}
-
-			RestLocalOffsets[ParticleIdx] = AllTransforms[ParentIdx].InverseTransformPosition(
-				AllTransforms[ParticleIdx].GetTranslation());
-			RestLocalRotations[ParticleIdx] = AllTransforms[ParentIdx].GetRotation().Inverse() *
-				AllTransforms[ParticleIdx].GetRotation();
-		}
-	}
+	return FMagicaParticleArrays{
+		Positions,
+		PredictedPositions,
+		Velocities,
+		InvMasses,
+		Depths
+	};
 }
 
-// ── Step ────────────────────────────────────────────────
-
-void FPBDSolver::Step(float DeltaTime)
+void FMagicaPBDSolver::Step(float DeltaTime)
 {
-	if (DeltaTime <= UE_SMALL_NUMBER || Particles.Num() == 0)
+	if (DeltaTime <= 0.0f || Positions.Num() == 0) return;
+
+	// 1. Inertia update (before prediction)
+	if (InertiaConstraint.IsValid())
 	{
-		return;
+		auto Arrays = MakeParticleArrays();
+		InertiaConstraint->Solve(Arrays);
 	}
 
-	InvDt = 1.f / DeltaTime;
-
+	// 2. Predict
 	PredictPositions(DeltaTime);
-	SolveConstraints();
+
+	// 3. Pre-collision constraints
+	SolveConstraints(PreCollisionConstraints);
+
+	// 4. Collisions
 	SolveCollisions();
+
+	// 5. Post-collision constraints
+	SolveConstraints(PostCollisionConstraints);
+
+	// 6. Update velocities and apply damping
 	UpdateVelocities(DeltaTime);
 	ClampVelocities();
-}
+	ApplyDamping();
 
-void FPBDSolver::UpdateFixedParticles(const TArray<FTransform>& AnimTransforms)
-{
-	for (int32 i = 0; i < Particles.Num(); ++i)
+	// 7. Accept predicted positions
+	for (int32 i = 0; i < Positions.Num(); ++i)
 	{
-		if (Particles[i].InvMass <= 0.f && AnimTransforms.IsValidIndex(i))
-		{
-			Particles[i].Position     = AnimTransforms[i].GetTranslation();
-			Particles[i].PrevPosition = Particles[i].Position;
-			Particles[i].Velocity     = FVector::ZeroVector;
-		}
+		PrevPositions[i] = Positions[i];
+		Positions[i] = PredictedPositions[i];
 	}
 }
 
-// ── GetResultTransforms ─────────────────────────────────
-
-void FPBDSolver::GetResultTransforms(TArray<FTransform>& OutTransforms) const
+void FMagicaPBDSolver::UpdateFixedParticles(const TArray<FVector>& AnimPositions)
 {
-	// Multi-chain mode: use per-chain rotation reconstruction
-	if (ChainRanges.Num() > 0)
-	{
-		GetResultTransformsMultiChain(OutTransforms);
-		return;
-	}
-
-	// Single-chain mode (original logic)
-	const int32 Count = Particles.Num();
-	OutTransforms.SetNum(Count);
-
+	const int32 Count = FMath::Min(AnimPositions.Num(), Positions.Num());
 	for (int32 i = 0; i < Count; ++i)
 	{
-		FQuat Rotation = FQuat::Identity;
-
-		if (i < Count - 1)
+		if (InvMasses[i] <= 0.0f)
 		{
-			const FVector CurrentDir = (Particles[i + 1].Position - Particles[i].Position).GetSafeNormal();
-			const FVector RestDir    = RestLocalOffsets.IsValidIndex(i + 1)
-				? RestLocalOffsets[i + 1].GetSafeNormal()
-				: FVector::DownVector;
-
-			if (!RestDir.IsNearlyZero() && !CurrentDir.IsNearlyZero())
-			{
-				Rotation = FQuat::FindBetweenNormals(RestDir, CurrentDir);
-			}
-		}
-		else if (i > 0)
-		{
-			Rotation = OutTransforms[i - 1].GetRotation();
-		}
-
-		OutTransforms[i] = FTransform(Rotation, Particles[i].Position, FVector::OneVector);
-	}
-}
-
-void FPBDSolver::GetResultTransformsMultiChain(TArray<FTransform>& OutTransforms) const
-{
-	const int32 Count = Particles.Num();
-	OutTransforms.SetNum(Count);
-
-	// Shared root bones: use identity rotation (they are pinned, animation drives them)
-	for (int32 i = 0; i < SharedRootCount && i < Count; ++i)
-	{
-		OutTransforms[i] = FTransform(FQuat::Identity, Particles[i].Position, FVector::OneVector);
-	}
-
-	// Per-chain rotation reconstruction
-	for (const FChainRange& Range : ChainRanges)
-	{
-		for (int32 j = 0; j < Range.Count; ++j)
-		{
-			const int32 Idx = Range.StartIndex + j;
-			if (Idx >= Count)
-			{
-				break;
-			}
-
-			FQuat Rotation = FQuat::Identity;
-
-			// Determine parent particle
-			const int32 ParentIdx = (j == 0) ? 0 : (Idx - 1);
-
-			// Look at child to determine direction
-			const int32 ChildIdx = (j < Range.Count - 1) ? (Idx + 1) : INDEX_NONE;
-
-			if (ChildIdx != INDEX_NONE && ChildIdx < Count)
-			{
-				const FVector CurrentDir = (Particles[ChildIdx].Position - Particles[Idx].Position).GetSafeNormal();
-				const FVector RestDir = RestLocalOffsets.IsValidIndex(ChildIdx)
-					? RestLocalOffsets[ChildIdx].GetSafeNormal()
-					: FVector::DownVector;
-
-				if (!RestDir.IsNearlyZero() && !CurrentDir.IsNearlyZero())
-				{
-					Rotation = FQuat::FindBetweenNormals(RestDir, CurrentDir);
-				}
-			}
-			else if (j > 0)
-			{
-				// Last bone in chain: inherit parent's rotation
-				Rotation = OutTransforms[Idx - 1].GetRotation();
-			}
-
-			OutTransforms[Idx] = FTransform(Rotation, Particles[Idx].Position, FVector::OneVector);
-		}
-	}
-
-	// Update root rotation based on first chain's first particle direction
-	if (SharedRootCount > 0 && ChainRanges.Num() > 0 && ChainRanges[0].Count > 0)
-	{
-		const int32 FirstChildIdx = ChainRanges[0].StartIndex;
-		if (FirstChildIdx < Count)
-		{
-			const FVector Dir = (Particles[FirstChildIdx].Position - Particles[0].Position).GetSafeNormal();
-			const FVector RestDir = RestLocalOffsets.IsValidIndex(FirstChildIdx)
-				? RestLocalOffsets[FirstChildIdx].GetSafeNormal()
-				: FVector::DownVector;
-
-			if (!RestDir.IsNearlyZero() && !Dir.IsNearlyZero())
-			{
-				OutTransforms[0] = FTransform(
-					FQuat::FindBetweenNormals(RestDir, Dir),
-					Particles[0].Position, FVector::OneVector);
-			}
+			Positions[i] = AnimPositions[i];
+			PrevPositions[i] = AnimPositions[i];
+			PredictedPositions[i] = AnimPositions[i];
+			Velocities[i] = FVector::ZeroVector;
 		}
 	}
 }
 
-void FPBDSolver::ResetToRestPose(const TArray<FTransform>& RestTransforms)
+void FMagicaPBDSolver::Reset(const TArray<FVector>& RestPositions)
 {
-	for (int32 i = 0; i < Particles.Num() && i < RestTransforms.Num(); ++i)
+	const int32 Count = FMath::Min(RestPositions.Num(), Positions.Num());
+	for (int32 i = 0; i < Count; ++i)
 	{
-		Particles[i].Position          = RestTransforms[i].GetTranslation();
-		Particles[i].PrevPosition      = Particles[i].Position;
-		Particles[i].Velocity          = FVector::ZeroVector;
-		Particles[i].PredictedPosition = Particles[i].Position;
+		Positions[i] = RestPositions[i];
+		PrevPositions[i] = RestPositions[i];
+		PredictedPositions[i] = RestPositions[i];
+		Velocities[i] = FVector::ZeroVector;
 	}
 }
 
-// ── PBD Substeps ────────────────────────────────────────
-
-void FPBDSolver::PredictPositions(float DeltaTime)
+void FMagicaPBDSolver::PredictPositions(float Dt)
 {
-	for (FPBDParticle& P : Particles)
+	for (int32 i = 0; i < Positions.Num(); ++i)
 	{
-		if (P.InvMass <= 0.f)
+		if (InvMasses[i] <= 0.0f)
 		{
-			P.PredictedPosition = P.Position;
+			PredictedPositions[i] = Positions[i];
 			continue;
 		}
 
-		P.Velocity *= FMath::Clamp(1.f - Damping, 0.f, 1.f);
-		P.Velocity += Gravity * DeltaTime;
-		P.PredictedPosition = P.Position + P.Velocity * DeltaTime;
+		Velocities[i] += Gravity * Dt;
+		PredictedPositions[i] = Positions[i] + Velocities[i] * Dt;
 	}
 }
 
-void FPBDSolver::SolveConstraints()
+void FMagicaPBDSolver::SolveConstraints(TArray<TSharedPtr<FMagicaConstraintBase>>& Constraints)
 {
+	auto Arrays = MakeParticleArrays();
 	for (int32 Iter = 0; Iter < SolverIterations; ++Iter)
 	{
-		for (const TSharedPtr<FClothConstraintBase>& Constraint : Constraints)
+		for (auto& Constraint : Constraints)
 		{
-			if (Constraint.IsValid())
-			{
-				Constraint->Solve(Particles);
-			}
+			Constraint->Solve(Arrays);
 		}
 	}
 }
 
-void FPBDSolver::SolveCollisions()
+void FMagicaPBDSolver::SolveCollisions()
 {
-	for (const TSharedPtr<FMagicaColliderShape>& Collider : Colliders)
+	for (int32 i = 0; i < PredictedPositions.Num(); ++i)
 	{
-		if (Collider.IsValid())
+		if (InvMasses[i] <= 0.0f) continue;
+
+		for (const auto& Collider : Colliders)
 		{
-			for (FPBDParticle& P : Particles)
-			{
-				if (P.InvMass > 0.f)
-				{
-					Collider->ResolveCollision(P.PredictedPosition);
-				}
-			}
+			Collider->ResolveCollision(PredictedPositions[i]);
 		}
 	}
 }
 
-void FPBDSolver::UpdateVelocities(float DeltaTime)
+void FMagicaPBDSolver::UpdateVelocities(float Dt)
 {
-	for (FPBDParticle& P : Particles)
+	const float InvDt = 1.0f / Dt;
+	for (int32 i = 0; i < Positions.Num(); ++i)
 	{
-		if (P.InvMass <= 0.f)
+		if (InvMasses[i] > 0.0f)
 		{
-			continue;
+			Velocities[i] = (PredictedPositions[i] - Positions[i]) * InvDt;
 		}
-
-		P.Velocity     = (P.PredictedPosition - P.Position) * InvDt;
-		P.PrevPosition = P.Position;
-		P.Position     = P.PredictedPosition;
 	}
 }
 
-void FPBDSolver::ClampVelocities()
+void FMagicaPBDSolver::ClampVelocities()
 {
-	if (MaxVelocity <= 0.f)
-	{
-		return;
-	}
-
 	const float MaxVelSq = MaxVelocity * MaxVelocity;
-	for (FPBDParticle& P : Particles)
+	for (int32 i = 0; i < Velocities.Num(); ++i)
 	{
-		if (P.Velocity.SizeSquared() > MaxVelSq)
+		if (Velocities[i].SizeSquared() > MaxVelSq)
 		{
-			P.Velocity = P.Velocity.GetSafeNormal() * MaxVelocity;
+			Velocities[i] = Velocities[i].GetSafeNormal() * MaxVelocity;
+		}
+	}
+}
+
+void FMagicaPBDSolver::ApplyDamping()
+{
+	const float DampFactor = 1.0f - Damping;
+	for (int32 i = 0; i < Velocities.Num(); ++i)
+	{
+		if (InvMasses[i] > 0.0f)
+		{
+			// Depth-based damping: root damps more, tip damps less
+			const float DepthDamp = FMath::Lerp(DampFactor, 1.0f, Depths[i] * 0.3f);
+			Velocities[i] *= DepthDamp;
 		}
 	}
 }
