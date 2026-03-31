@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Simulation/Constraints/ConstraintBase.h"
+#include "Core/ClothTypes.h"
 
 /** Triangle pair for dihedral angle bending (MagicaCloth2 DirectionDihedralAngle). */
 struct FMagicaBendPair

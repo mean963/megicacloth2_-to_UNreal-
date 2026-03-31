@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Simulation/Constraints/ConstraintBase.h"
+#include "Core/ClothTypes.h"
 
 /** Type of distance constraint (MagicaCloth2 separation). */
 enum class EMagicaDistanceType : uint8

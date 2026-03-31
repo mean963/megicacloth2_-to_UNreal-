@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Simulation/Constraints/ConstraintBase.h"
+#include "VirtualMesh/VertexAttribute.h"
 
 /** Tether pair: particle tethered to a root particle with max distance. */
 struct FMagicaTetherPair

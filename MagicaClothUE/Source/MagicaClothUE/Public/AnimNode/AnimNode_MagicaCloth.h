@@ -289,7 +289,7 @@ private:
 	void UpdateColliderTransformsFromPose(FComponentSpacePoseContext& Output);
 
 	// Constraint building
-	void BuildConstraints(FMagicaSimulationManager::FTeamData& Team);
+	void SetupConstraints(FMagicaSimulationManager::FTeamData& Team);
 
 	// Helper: get the subsystem from world
 	UMagicaClothSubsystem* GetSubsystem(FComponentSpacePoseContext& Context) const;

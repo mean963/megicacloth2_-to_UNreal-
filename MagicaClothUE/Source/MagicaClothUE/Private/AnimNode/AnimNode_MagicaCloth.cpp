@@ -24,14 +24,14 @@
 
 void FAnimNode_MagicaCloth::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
-	this->RootBone.Initialize(RequiredBones);
-	this->EndBone.Initialize(RequiredBones);
+	RootBone.Initialize(RequiredBones);
+	EndBone.Initialize(RequiredBones);
 
-	for (FBoneReference& BoneRef : this->ExcludeBones)
+	for (FBoneReference& BoneRef : ExcludeBones)
 	{
 		BoneRef.Initialize(RequiredBones);
 	}
-	for (FMagicaRootBoneSetting& Setting : this->AdditionalRootBones)
+	for (FMagicaRootBoneSetting& Setting : AdditionalRootBones)
 	{
 		Setting.RootBone.Initialize(RequiredBones);
 		for (FBoneReference& BoneRef : Setting.OverrideExcludeBones)
@@ -39,38 +39,38 @@ void FAnimNode_MagicaCloth::InitializeBoneReferences(const FBoneContainer& Requi
 			BoneRef.Initialize(RequiredBones);
 		}
 	}
-	for (FBoneReference& BoneRef : this->PhysicsAssetBoneFilter)
+	for (FBoneReference& BoneRef : PhysicsAssetBoneFilter)
 	{
 		BoneRef.Initialize(RequiredBones);
 	}
 
 	// Initialize driving bones in inline limits
-	for (FMagicaSphericalLimit& Limit : this->SphericalLimits)
+	for (FMagicaSphericalLimit& Limit : SphericalLimits)
 	{
 		Limit.DrivingBone.Initialize(RequiredBones);
 	}
-	for (FMagicaCapsuleLimit& Limit : this->CapsuleLimits)
+	for (FMagicaCapsuleLimit& Limit : CapsuleLimits)
 	{
 		Limit.DrivingBone.Initialize(RequiredBones);
 	}
-	for (FMagicaBoxLimit& Limit : this->BoxLimits)
+	for (FMagicaBoxLimit& Limit : BoxLimits)
 	{
 		Limit.DrivingBone.Initialize(RequiredBones);
 	}
-	for (FMagicaPlanarLimit& Limit : this->PlanarLimits)
+	for (FMagicaPlanarLimit& Limit : PlanarLimits)
 	{
 		Limit.DrivingBone.Initialize(RequiredBones);
 	}
 
-	this->bNeedsRebuild = true;
+	bNeedsRebuild = true;
 }
 
 void FAnimNode_MagicaCloth::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
-	this->ShutdownSimulation();
-	this->bInitialized = false;
-	this->bNeedsRebuild = true;
+	ShutdownSimulation();
+	bInitialized = false;
+	bNeedsRebuild = true;
 }
 
 void FAnimNode_MagicaCloth::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -80,7 +80,7 @@ void FAnimNode_MagicaCloth::UpdateInternal(const FAnimationUpdateContext& Contex
 
 bool FAnimNode_MagicaCloth::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
 {
-	return this->RootBone.IsValidToEvaluate(RequiredBones);
+	return RootBone.IsValidToEvaluate(RequiredBones);
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -89,18 +89,18 @@ bool FAnimNode_MagicaCloth::IsValidToEvaluate(const USkeleton* Skeleton, const F
 
 void FAnimNode_MagicaCloth::BuildBoneChain(const FBoneContainer& RequiredBones)
 {
-	this->BoneChainIndices.Empty();
-	this->BoneChainSkeletonIndices.Empty();
+	BoneChainIndices.Empty();
+	BoneChainSkeletonIndices.Empty();
 
-	if (!this->RootBone.IsValidToEvaluate(RequiredBones))
+	if (!RootBone.IsValidToEvaluate(RequiredBones))
 	{
 		return;
 	}
 
 	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-	const int32 RootIndex = this->RootBone.BoneIndex;
+	const int32 RootIndex = RootBone.BoneIndex;
 	int32 CurrentIndex = RootIndex;
-	const int32 EndIndex = this->EndBone.IsValidToEvaluate(RequiredBones) ? this->EndBone.BoneIndex : INDEX_NONE;
+	const int32 EndIndex = EndBone.IsValidToEvaluate(RequiredBones) ? EndBone.BoneIndex : INDEX_NONE;
 
 	TArray<int32> Chain;
 	Chain.Add(CurrentIndex);
@@ -155,12 +155,12 @@ void FAnimNode_MagicaCloth::BuildBoneChain(const FBoneContainer& RequiredBones)
 			FMeshPoseBoneIndex(SkeletonIdx));
 		if (CompactIdx != INDEX_NONE)
 		{
-			this->BoneChainIndices.Add(CompactIdx);
-			this->BoneChainSkeletonIndices.Add(SkeletonIdx);
+			BoneChainIndices.Add(CompactIdx);
+			BoneChainSkeletonIndices.Add(SkeletonIdx);
 		}
 	}
 
-	this->bNeedsRebuild = false;
+	bNeedsRebuild = false;
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -169,17 +169,17 @@ void FAnimNode_MagicaCloth::BuildBoneChain(const FBoneContainer& RequiredBones)
 
 void FAnimNode_MagicaCloth::BuildMultiChain(const FBoneContainer& RequiredBones)
 {
-	this->AllBoneCompactIndices.Empty();
-	this->AllBoneSkeletonIndices.Empty();
-	this->TotalParticleCount = 0;
+	AllBoneCompactIndices.Empty();
+	AllBoneSkeletonIndices.Empty();
+	TotalParticleCount = 0;
 
-	if (!this->RootBone.IsValidToEvaluate(RequiredBones))
+	if (!RootBone.IsValidToEvaluate(RequiredBones))
 	{
 		return;
 	}
 
 	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-	const int32 RootIndex = this->RootBone.BoneIndex;
+	const int32 RootIndex = RootBone.BoneIndex;
 	const int32 BoneCount = RefSkeleton.GetNum();
 
 	// Particle 0 = shared root
@@ -190,12 +190,12 @@ void FAnimNode_MagicaCloth::BuildMultiChain(const FBoneContainer& RequiredBones)
 		return;
 	}
 
-	this->AllBoneCompactIndices.Add(RootCompact);
-	this->AllBoneSkeletonIndices.Add(RootIndex);
+	AllBoneCompactIndices.Add(RootCompact);
+	AllBoneSkeletonIndices.Add(RootIndex);
 
 	// Build exclude set
 	TSet<int32> ExcludedBoneIndices;
-	for (const FBoneReference& BoneRef : this->ExcludeBones)
+	for (const FBoneReference& BoneRef : ExcludeBones)
 	{
 		if (BoneRef.BoneIndex != INDEX_NONE)
 		{
@@ -248,14 +248,14 @@ void FAnimNode_MagicaCloth::BuildMultiChain(const FBoneContainer& RequiredBones)
 				FMeshPoseBoneIndex(BoneIdx));
 			if (Compact != INDEX_NONE)
 			{
-				this->AllBoneCompactIndices.Add(Compact);
-				this->AllBoneSkeletonIndices.Add(BoneIdx);
+				AllBoneCompactIndices.Add(Compact);
+				AllBoneSkeletonIndices.Add(BoneIdx);
 			}
 		}
 	}
 
-	this->TotalParticleCount = this->AllBoneCompactIndices.Num();
-	this->bNeedsRebuild = false;
+	TotalParticleCount = AllBoneCompactIndices.Num();
+	bNeedsRebuild = false;
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -264,9 +264,9 @@ void FAnimNode_MagicaCloth::BuildMultiChain(const FBoneContainer& RequiredBones)
 
 UMagicaClothSubsystem* FAnimNode_MagicaCloth::GetSubsystem(FComponentSpacePoseContext& Context) const
 {
-	if (this->CachedSubsystem.IsValid())
+	if (CachedSubsystem.IsValid())
 	{
-		return this->CachedSubsystem.Get();
+		return CachedSubsystem.Get();
 	}
 
 	USkeletalMeshComponent* SkelComp = Context.AnimInstanceProxy->GetSkelMeshComponent();
@@ -295,7 +295,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 	const FBoneContainer& RequiredBones = Context.Pose.GetPose().GetBoneContainer();
 
 	// Spherical limits
-	for (const FMagicaSphericalLimit& Limit : this->SphericalLimits)
+	for (const FMagicaSphericalLimit& Limit : SphericalLimits)
 	{
 		if (!Limit.bEnable)
 		{
@@ -303,7 +303,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 		}
 
 		auto Collider = MakeShared<FMagicaSphereCollider>(Limit.Radius);
-		Collider->Friction = this->ColliderFriction;
+		Collider->Friction = ColliderFriction;
 		Collider->LimitType = Limit.LimitType;
 
 		FTransform ColliderTransform = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
@@ -320,7 +320,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 				Mapping.CompactBoneIndex = CompactIdx;
 				Mapping.ColliderIndex = Team.Solver.Colliders.Num();
 				Mapping.LocalOffset = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
-				this->ColliderBoneMappings.Add(Mapping);
+				ColliderBoneMappings.Add(Mapping);
 			}
 		}
 
@@ -329,7 +329,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 	}
 
 	// Capsule limits
-	for (const FMagicaCapsuleLimit& Limit : this->CapsuleLimits)
+	for (const FMagicaCapsuleLimit& Limit : CapsuleLimits)
 	{
 		if (!Limit.bEnable)
 		{
@@ -337,7 +337,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 		}
 
 		auto Collider = MakeShared<FMagicaCapsuleCollider>(Limit.Radius, Limit.Length * 0.5f);
-		Collider->Friction = this->ColliderFriction;
+		Collider->Friction = ColliderFriction;
 		Collider->LimitType = Limit.LimitType;
 
 		FTransform ColliderTransform = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
@@ -354,7 +354,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 				Mapping.CompactBoneIndex = CompactIdx;
 				Mapping.ColliderIndex = Team.Solver.Colliders.Num();
 				Mapping.LocalOffset = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
-				this->ColliderBoneMappings.Add(Mapping);
+				ColliderBoneMappings.Add(Mapping);
 			}
 		}
 
@@ -363,7 +363,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 	}
 
 	// Box limits
-	for (const FMagicaBoxLimit& Limit : this->BoxLimits)
+	for (const FMagicaBoxLimit& Limit : BoxLimits)
 	{
 		if (!Limit.bEnable)
 		{
@@ -371,7 +371,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 		}
 
 		auto Collider = MakeShared<FMagicaBoxCollider>(Limit.Extent);
-		Collider->Friction = this->ColliderFriction;
+		Collider->Friction = ColliderFriction;
 		Collider->LimitType = Limit.LimitType;
 
 		FTransform ColliderTransform = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
@@ -388,7 +388,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 				Mapping.CompactBoneIndex = CompactIdx;
 				Mapping.ColliderIndex = Team.Solver.Colliders.Num();
 				Mapping.LocalOffset = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
-				this->ColliderBoneMappings.Add(Mapping);
+				ColliderBoneMappings.Add(Mapping);
 			}
 		}
 
@@ -397,7 +397,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 	}
 
 	// Planar limits
-	for (const FMagicaPlanarLimit& Limit : this->PlanarLimits)
+	for (const FMagicaPlanarLimit& Limit : PlanarLimits)
 	{
 		if (!Limit.bEnable)
 		{
@@ -406,7 +406,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 
 		auto Collider = MakeShared<FMagicaPlaneCollider>();
 		Collider->Plane = Limit.Plane;
-		Collider->Friction = this->ColliderFriction;
+		Collider->Friction = ColliderFriction;
 		Collider->LimitType = Limit.LimitType;
 
 		FTransform ColliderTransform = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
@@ -423,7 +423,7 @@ void FAnimNode_MagicaCloth::BuildInlineLimitColliders(
 				Mapping.CompactBoneIndex = CompactIdx;
 				Mapping.ColliderIndex = Team.Solver.Colliders.Num();
 				Mapping.LocalOffset = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
-				this->ColliderBoneMappings.Add(Mapping);
+				ColliderBoneMappings.Add(Mapping);
 			}
 		}
 
@@ -440,7 +440,7 @@ void FAnimNode_MagicaCloth::BuildDataAssetColliders(
 	FComponentSpacePoseContext& Context,
 	FMagicaSimulationManager::FTeamData& Team)
 {
-	if (!this->LimitsDataAsset)
+	if (!LimitsDataAsset)
 	{
 		return;
 	}
@@ -464,35 +464,35 @@ void FAnimNode_MagicaCloth::BuildDataAssetColliders(
 				Mapping.CompactBoneIndex = CompactIdx;
 				Mapping.ColliderIndex = Team.Solver.Colliders.Num();
 				Mapping.LocalOffset = FTransform(Limit.OffsetRotation.Quaternion(), Limit.OffsetLocation);
-				this->ColliderBoneMappings.Add(Mapping);
+				ColliderBoneMappings.Add(Mapping);
 			}
 		}
 
 		Collider->WorldTransform = ColliderTransform;
-		Collider->Friction = this->ColliderFriction;
+		Collider->Friction = ColliderFriction;
 		Collider->LimitType = Limit.LimitType;
 		Team.Solver.Colliders.Add(Collider);
 	};
 
-	for (const FMagicaSphericalLimit& Limit : this->LimitsDataAsset->SphericalLimits)
+	for (const FMagicaSphericalLimit& Limit : LimitsDataAsset->SphericalLimits)
 	{
 		if (!Limit.bEnable) continue;
 		AddLimitCollider(Limit, MakeShared<FMagicaSphereCollider>(Limit.Radius));
 	}
 
-	for (const FMagicaCapsuleLimit& Limit : this->LimitsDataAsset->CapsuleLimits)
+	for (const FMagicaCapsuleLimit& Limit : LimitsDataAsset->CapsuleLimits)
 	{
 		if (!Limit.bEnable) continue;
 		AddLimitCollider(Limit, MakeShared<FMagicaCapsuleCollider>(Limit.Radius, Limit.Length * 0.5f));
 	}
 
-	for (const FMagicaBoxLimit& Limit : this->LimitsDataAsset->BoxLimits)
+	for (const FMagicaBoxLimit& Limit : LimitsDataAsset->BoxLimits)
 	{
 		if (!Limit.bEnable) continue;
 		AddLimitCollider(Limit, MakeShared<FMagicaBoxCollider>(Limit.Extent));
 	}
 
-	for (const FMagicaPlanarLimit& Limit : this->LimitsDataAsset->PlanarLimits)
+	for (const FMagicaPlanarLimit& Limit : LimitsDataAsset->PlanarLimits)
 	{
 		if (!Limit.bEnable) continue;
 		auto PlaneCollider = MakeShared<FMagicaPlaneCollider>();
@@ -509,12 +509,12 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 	FComponentSpacePoseContext& Context,
 	FMagicaSimulationManager::FTeamData& Team)
 {
-	if (!this->PhysicsAssetForLimits)
+	if (!PhysicsAssetForLimits)
 	{
 		return;
 	}
 
-	const float Friction = this->ColliderFriction;
+	const float Friction = ColliderFriction;
 
 	USkeletalMeshComponent* SkelComp = Context.AnimInstanceProxy->GetSkelMeshComponent();
 	if (!SkelComp)
@@ -522,7 +522,7 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 		return;
 	}
 
-	UPhysicsAsset* PA = this->PhysicsAssetForLimits.Get();
+	UPhysicsAsset* PA = PhysicsAssetForLimits.Get();
 	if (!PA)
 	{
 		return;
@@ -533,10 +533,10 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 
 	// Build allowed bone set from filter
 	TSet<FName> AllowedBones;
-	const bool bHasFilter = this->PhysicsAssetBoneFilter.Num() > 0;
+	const bool bHasFilter = PhysicsAssetBoneFilter.Num() > 0;
 	if (bHasFilter)
 	{
-		for (const FBoneReference& BoneRef : this->PhysicsAssetBoneFilter)
+		for (const FBoneReference& BoneRef : PhysicsAssetBoneFilter)
 		{
 			if (BoneRef.BoneIndex != INDEX_NONE)
 			{
@@ -577,7 +577,7 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 		for (const FKSphereElem& Sphere : AggGeom.SphereElems)
 		{
 			auto SphereCollider = MakeShared<FMagicaSphereCollider>(Sphere.Radius);
-			SphereCollider->Friction = this->ColliderFriction;
+			SphereCollider->Friction = ColliderFriction;
 
 			const FTransform LocalOffset(FQuat::Identity, Sphere.Center, FVector::OneVector);
 			SphereCollider->WorldTransform = LocalOffset * BoneCS;
@@ -589,14 +589,14 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 			Mapping.CompactBoneIndex = CompactIdx;
 			Mapping.ColliderIndex = ColliderIdx;
 			Mapping.LocalOffset = LocalOffset;
-			this->ColliderBoneMappings.Add(Mapping);
+			ColliderBoneMappings.Add(Mapping);
 		}
 
 		// Capsule (Sphyl) bodies
 		for (const FKSphylElem& Sphyl : AggGeom.SphylElems)
 		{
 			auto CapsuleCollider = MakeShared<FMagicaCapsuleCollider>(Sphyl.Radius, Sphyl.Length * 0.5f);
-			CapsuleCollider->Friction = this->ColliderFriction;
+			CapsuleCollider->Friction = ColliderFriction;
 
 			const FTransform LocalOffset(Sphyl.Rotation.Quaternion(), Sphyl.Center, FVector::OneVector);
 			CapsuleCollider->WorldTransform = LocalOffset * BoneCS;
@@ -608,7 +608,7 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 			Mapping.CompactBoneIndex = CompactIdx;
 			Mapping.ColliderIndex = ColliderIdx;
 			Mapping.LocalOffset = LocalOffset;
-			this->ColliderBoneMappings.Add(Mapping);
+			ColliderBoneMappings.Add(Mapping);
 		}
 
 		// Tapered capsule bodies (treat as capsule with average radius)
@@ -616,7 +616,7 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 		{
 			const float AvgRadius = (TapCap.Radius0 + TapCap.Radius1) * 0.5f;
 			auto CapsuleCollider = MakeShared<FMagicaCapsuleCollider>(AvgRadius, TapCap.Length * 0.5f);
-			CapsuleCollider->Friction = this->ColliderFriction;
+			CapsuleCollider->Friction = ColliderFriction;
 
 			const FTransform LocalOffset(TapCap.Rotation.Quaternion(), TapCap.Center, FVector::OneVector);
 			CapsuleCollider->WorldTransform = LocalOffset * BoneCS;
@@ -628,7 +628,7 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 			Mapping.CompactBoneIndex = CompactIdx;
 			Mapping.ColliderIndex = ColliderIdx;
 			Mapping.LocalOffset = LocalOffset;
-			this->ColliderBoneMappings.Add(Mapping);
+			ColliderBoneMappings.Add(Mapping);
 		}
 	}
 }
@@ -639,12 +639,12 @@ void FAnimNode_MagicaCloth::BuildPhysicsAssetColliders(
 
 void FAnimNode_MagicaCloth::UpdateColliderTransformsFromPose(FComponentSpacePoseContext& Output)
 {
-	if (this->ColliderBoneMappings.Num() == 0 || this->TeamId == MAGICA_INVALID_TEAM_ID)
+	if (ColliderBoneMappings.Num() == 0 || TeamId == MAGICA_INVALID_TEAM_ID)
 	{
 		return;
 	}
 
-	UMagicaClothSubsystem* Subsystem = this->CachedSubsystem.Get();
+	UMagicaClothSubsystem* Subsystem = CachedSubsystem.Get();
 	if (!Subsystem)
 	{
 		return;
@@ -656,7 +656,7 @@ void FAnimNode_MagicaCloth::UpdateColliderTransformsFromPose(FComponentSpacePose
 		return;
 	}
 
-	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(this->TeamId);
+	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(TeamId);
 	if (!Team)
 	{
 		return;
@@ -678,7 +678,7 @@ void FAnimNode_MagicaCloth::UpdateColliderTransformsFromPose(FComponentSpacePose
 		}
 	}
 
-	for (const FColliderBoneMapping& Mapping : this->ColliderBoneMappings)
+	for (const FColliderBoneMapping& Mapping : ColliderBoneMappings)
 	{
 		if (Mapping.ColliderIndex >= 0 && Mapping.ColliderIndex < NumColliders)
 		{
@@ -687,42 +687,54 @@ void FAnimNode_MagicaCloth::UpdateColliderTransformsFromPose(FComponentSpacePose
 		}
 	}
 
-	SimManager->UpdateColliderTransforms(this->TeamId, ColliderTransforms);
+	SimManager->UpdateColliderTransforms(TeamId, ColliderTransforms);
 }
 
 // ═════════════════════════════════════════════════════════════
 // Constraint Building
 // ═════════════════════════════════════════════════════════════
 
-void FAnimNode_MagicaCloth::BuildConstraints(FMagicaSimulationManager::FTeamData& Team)
+void FAnimNode_MagicaCloth::SetupConstraints(FMagicaSimulationManager::FTeamData& Team)
 {
-	if (!this->VirtualMeshPtr)
+	if (!VirtualMeshPtr)
 	{
 		return;
 	}
 
-	const FMagicaVirtualMesh& VM = *this->VirtualMeshPtr;
+	const FMagicaVirtualMesh& VM = *VirtualMeshPtr;
 	const TArray<FVector>& Positions = VM.Positions;
 	const TArray<int32>& ParentIndices = VM.ParentIndices;
+
+	// Cache UPROPERTY values into locals to avoid UHT-generated accessor conflicts in -Rocket builds
+	const float LocalStiffness = PhysicsSettings.Stiffness;
+	const float LocalBendStiffness = PhysicsSettings.BendStiffness;
+	const bool bLocalMultiChainMode = bMultiChainMode;
+	const bool bLocalEnableMeshNet = bEnableMeshNet;
+	const float LocalHorizontalStiffness = HorizontalStiffness;
+	const float LocalShearStiffness = ShearStiffness;
+	const bool bLocalClosedLoop = bClosedLoop;
+	const bool bLocalEnableSelfCollision = bEnableSelfCollision;
+	const float LocalSelfCollisionRadius = SelfCollisionRadius;
+	const FMagicaInertiaParams LocalInertiaParams = InertiaParams;
 
 	// --- Distance Constraint (Vertical: parent-child) ---
 	{
 		auto Constraint = MakeShared<FMagicaDistanceConstraint>();
-		Constraint->BuildVertical(Positions, ParentIndices, this->PhysicsSettings.Stiffness);
+		Constraint->BuildVertical(Positions, ParentIndices, LocalStiffness);
 		Team.Solver.PreCollisionConstraints.Add(Constraint);
 	}
 
 	// --- Bending Constraint ---
-	if (this->PhysicsSettings.BendStiffness > UE_SMALL_NUMBER)
+	if (LocalBendStiffness > UE_SMALL_NUMBER)
 	{
 		auto Constraint = MakeShared<FMagicaBendingConstraint>();
-		if (this->bMultiChainMode && VM.ChainRanges.Num() > 0)
+		if (bLocalMultiChainMode && VM.ChainRanges.Num() > 0)
 		{
-			Constraint->BuildFromMultiChain(Positions, VM.ChainRanges, VM.SharedRootCount, this->PhysicsSettings.BendStiffness);
+			Constraint->BuildFromMultiChain(Positions, VM.ChainRanges, VM.SharedRootCount, LocalBendStiffness);
 		}
 		else
 		{
-			Constraint->BuildFromChain(Positions, ParentIndices, this->PhysicsSettings.BendStiffness);
+			Constraint->BuildFromChain(Positions, ParentIndices, LocalBendStiffness);
 		}
 		Team.Solver.PreCollisionConstraints.Add(Constraint);
 	}
@@ -739,34 +751,34 @@ void FAnimNode_MagicaCloth::BuildConstraints(FMagicaSimulationManager::FTeamData
 	{
 		auto Constraint = MakeShared<FMagicaAngleConstraint>();
 		Constraint->Build(Positions, ParentIndices, VM.RestLocalRotations, VM.RestLocalOffsets,
-			this->PhysicsSettings.Stiffness * 0.5f);
+			LocalStiffness * 0.5f);
 		Team.Solver.PreCollisionConstraints.Add(Constraint);
 	}
 
 	// --- Inertia Constraint ---
 	{
 		auto Constraint = MakeShared<FMagicaInertiaConstraint>();
-		Constraint->Params = this->InertiaParams;
+		Constraint->Params = LocalInertiaParams;
 		Team.Solver.InertiaConstraint = Constraint;
 	}
 
 	// --- Mesh Net Constraints (multi-chain only) ---
-	if (this->bMultiChainMode && this->bEnableMeshNet && VM.ChainRanges.Num() >= 2)
+	if (bLocalMultiChainMode && bLocalEnableMeshNet && VM.ChainRanges.Num() >= 2)
 	{
 		// Horizontal distance constraints
 		{
 			auto Constraint = MakeShared<FMagicaDistanceConstraint>();
 			Constraint->BuildHorizontal(Positions, VM.ChainRanges, VM.SharedRootCount,
-				this->HorizontalStiffness, this->bClosedLoop);
+				LocalHorizontalStiffness, bLocalClosedLoop);
 			Team.Solver.PreCollisionConstraints.Add(Constraint);
 		}
 
 		// Diagonal (shear) distance constraints
-		if (this->ShearStiffness > UE_SMALL_NUMBER)
+		if (LocalShearStiffness > UE_SMALL_NUMBER)
 		{
 			auto Constraint = MakeShared<FMagicaDistanceConstraint>();
 			Constraint->BuildDiagonal(Positions, VM.ChainRanges, VM.SharedRootCount,
-				this->ShearStiffness, this->bClosedLoop);
+				LocalShearStiffness, bLocalClosedLoop);
 			Team.Solver.PreCollisionConstraints.Add(Constraint);
 		}
 	}
@@ -779,7 +791,7 @@ void FAnimNode_MagicaCloth::BuildConstraints(FMagicaSimulationManager::FTeamData
 void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Context)
 {
 	// Determine which bone arrays to use
-	const TArray<FCompactPoseBoneIndex>& BoneIndices = this->bMultiChainMode ? this->AllBoneCompactIndices : this->BoneChainIndices;
+	const TArray<FCompactPoseBoneIndex>& BoneIndices = bMultiChainMode ? AllBoneCompactIndices : BoneChainIndices;
 	const int32 NumBones = BoneIndices.Num();
 
 	if (NumBones < 2)
@@ -788,12 +800,12 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 	}
 
 	// Get subsystem
-	UMagicaClothSubsystem* Subsystem = this->GetSubsystem(Context);
+	UMagicaClothSubsystem* Subsystem = GetSubsystem(Context);
 	if (!Subsystem)
 	{
 		return;
 	}
-	this->CachedSubsystem = Subsystem;
+	CachedSubsystem = Subsystem;
 
 	FMagicaSimulationManager* SimManager = Subsystem->GetSimulationManager();
 	if (!SimManager)
@@ -810,21 +822,21 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 	}
 
 	// Build VirtualMesh
-	this->VirtualMeshOwned = MakeUnique<FMagicaVirtualMesh>();
-	this->VirtualMeshPtr = this->VirtualMeshOwned.Get();
+	VirtualMeshOwned = MakeUnique<FMagicaVirtualMesh>();
+	VirtualMeshPtr = VirtualMeshOwned.Get();
 
-	if (this->bMultiChainMode)
+	if (bMultiChainMode)
 	{
 		// Build chain ranges
 		TArray<FMagicaChainRange> ChainRanges;
 		int32 Offset = 1; // skip root
 		const FReferenceSkeleton& RefSkeleton = Context.Pose.GetPose().GetBoneContainer().GetReferenceSkeleton();
-		const int32 RootIndex = this->RootBone.BoneIndex;
+		const int32 RootIndex = RootBone.BoneIndex;
 		const int32 BoneCount = RefSkeleton.GetNum();
 
 		// Build exclude set
 		TSet<int32> ExcludedBoneIndices;
-		for (const FBoneReference& BoneRef : this->ExcludeBones)
+		for (const FBoneReference& BoneRef : ExcludeBones)
 		{
 			if (BoneRef.BoneIndex != INDEX_NONE)
 			{
@@ -868,67 +880,67 @@ void FAnimNode_MagicaCloth::InitializeSimulation(FComponentSpacePoseContext& Con
 			Offset += ChainLen;
 		}
 
-		this->VirtualMeshPtr->BuildFromMultiChain(InitTransforms, 1, ChainRanges);
+		VirtualMeshPtr->BuildFromMultiChain(InitTransforms, 1, ChainRanges);
 	}
 	else
 	{
-		this->VirtualMeshPtr->BuildFromBoneChain(InitTransforms, 1);
+		VirtualMeshPtr->BuildFromBoneChain(InitTransforms, 1);
 	}
 
-	this->VirtualMeshPtr->CalculateDepth();
+	VirtualMeshPtr->CalculateDepth();
 
 	// Register Team with SimulationManager
-	this->TeamId = SimManager->RegisterTeam();
-	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(this->TeamId);
+	TeamId = SimManager->RegisterTeam();
+	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(TeamId);
 	if (!Team)
 	{
 		return;
 	}
 
 	// Initialize solver from VirtualMesh
-	Team->Solver.Gravity = this->Gravity;
-	Team->Solver.Damping = this->PhysicsSettings.Damping;
-	Team->Solver.MaxVelocity = this->PhysicsSettings.MaxVelocity;
-	Team->Solver.SolverIterations = this->SolverIterations;
-	Team->Solver.Initialize(*this->VirtualMeshPtr);
+	Team->Solver.Gravity = Gravity;
+	Team->Solver.Damping = PhysicsSettings.Damping;
+	Team->Solver.MaxVelocity = PhysicsSettings.MaxVelocity;
+	Team->Solver.SolverIterations = SolverIterations;
+	Team->Solver.Initialize(*VirtualMeshPtr);
 
 	// Build all constraints
-	this->BuildConstraints(*Team);
+	SetupConstraints(*Team);
 
 	// Build colliders from all 3 sources
-	this->ColliderBoneMappings.Empty();
-	this->BuildInlineLimitColliders(Context, *Team);
-	this->BuildDataAssetColliders(Context, *Team);
-	this->BuildPhysicsAssetColliders(Context, *Team);
+	ColliderBoneMappings.Empty();
+	BuildInlineLimitColliders(Context, *Team);
+	BuildDataAssetColliders(Context, *Team);
+	BuildPhysicsAssetColliders(Context, *Team);
 
 	// Ensure simulation thread is running
 	Subsystem->EnsureSimulationRunning();
-	SimManager->SetTargetHz(static_cast<float>(this->TargetFramerate));
-	SimManager->MaxStepsPerFrame = this->MaxStepsPerFrame;
+	SimManager->SetTargetHz(static_cast<float>(TargetFramerate));
+	SimManager->MaxStepsPerFrame = MaxStepsPerFrame;
 
-	this->PrevResults = InitTransforms;
-	this->bInitialized = true;
+	PrevResults = InitTransforms;
+	bInitialized = true;
 }
 
 void FAnimNode_MagicaCloth::ShutdownSimulation()
 {
-	if (this->TeamId != MAGICA_INVALID_TEAM_ID)
+	if (TeamId != MAGICA_INVALID_TEAM_ID)
 	{
-		if (this->CachedSubsystem.IsValid())
+		if (CachedSubsystem.IsValid())
 		{
-			FMagicaSimulationManager* SimManager = this->CachedSubsystem->GetSimulationManager();
+			FMagicaSimulationManager* SimManager = CachedSubsystem->GetSimulationManager();
 			if (SimManager)
 			{
-				SimManager->UnregisterTeam(this->TeamId);
+				SimManager->UnregisterTeam(TeamId);
 			}
 		}
-		this->TeamId = MAGICA_INVALID_TEAM_ID;
+		TeamId = MAGICA_INVALID_TEAM_ID;
 	}
 
-	this->VirtualMeshOwned.Reset();
-	this->VirtualMeshPtr = nullptr;
-	this->ColliderBoneMappings.Empty();
-	this->CachedSubsystem.Reset();
+	VirtualMeshOwned.Reset();
+	VirtualMeshPtr = nullptr;
+	ColliderBoneMappings.Empty();
+	CachedSubsystem.Reset();
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -939,20 +951,20 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	FComponentSpacePoseContext& Output,
 	TArray<FBoneTransform>& OutBoneTransforms)
 {
-	if (this->bNeedsRebuild)
+	if (bNeedsRebuild)
 	{
-		if (this->bMultiChainMode)
+		if (bMultiChainMode)
 		{
-			this->BuildMultiChain(Output.Pose.GetPose().GetBoneContainer());
+			BuildMultiChain(Output.Pose.GetPose().GetBoneContainer());
 		}
 		else
 		{
-			this->BuildBoneChain(Output.Pose.GetPose().GetBoneContainer());
+			BuildBoneChain(Output.Pose.GetPose().GetBoneContainer());
 		}
 	}
 
 	// Determine which bone arrays to use
-	const TArray<FCompactPoseBoneIndex>& BoneIndices = this->bMultiChainMode ? this->AllBoneCompactIndices : this->BoneChainIndices;
+	const TArray<FCompactPoseBoneIndex>& BoneIndices = bMultiChainMode ? AllBoneCompactIndices : BoneChainIndices;
 	const int32 NumBones = BoneIndices.Num();
 
 	if (NumBones < 2)
@@ -960,25 +972,25 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 		return;
 	}
 
-	if (!this->bInitialized)
+	if (!bInitialized)
 	{
-		this->InitializeSimulation(Output);
-		if (!this->bInitialized)
+		InitializeSimulation(Output);
+		if (!bInitialized)
 		{
 			return;
 		}
 	}
 
 	// Ensure subsystem is still valid
-	UMagicaClothSubsystem* Subsystem = this->CachedSubsystem.Get();
+	UMagicaClothSubsystem* Subsystem = CachedSubsystem.Get();
 	if (!Subsystem)
 	{
-		Subsystem = this->GetSubsystem(Output);
+		Subsystem = GetSubsystem(Output);
 		if (!Subsystem)
 		{
 			return;
 		}
-		this->CachedSubsystem = Subsystem;
+		CachedSubsystem = Subsystem;
 	}
 
 	FMagicaSimulationManager* SimManager = Subsystem->GetSimulationManager();
@@ -987,7 +999,7 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 		return;
 	}
 
-	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(this->TeamId);
+	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(TeamId);
 	if (!Team)
 	{
 		return;
@@ -1000,17 +1012,17 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	{
 		CurrentAnimPositions[i] = Output.Pose.GetComponentSpaceTransform(BoneIndices[i]).GetTranslation();
 	}
-	SimManager->UpdateAnimPositions(this->TeamId, CurrentAnimPositions);
+	SimManager->UpdateAnimPositions(TeamId, CurrentAnimPositions);
 
 	// Update collider transforms from current pose
-	this->UpdateColliderTransformsFromPose(Output);
+	UpdateColliderTransformsFromPose(Output);
 
 	// Live-update solver parameters
-	Team->Solver.Gravity = this->Gravity;
-	Team->Solver.Damping = this->PhysicsSettings.Damping;
-	Team->Solver.MaxVelocity = this->PhysicsSettings.MaxVelocity;
-	Team->Solver.SolverIterations = this->SolverIterations;
-	SimManager->SetTargetHz(static_cast<float>(this->TargetFramerate));
+	Team->Solver.Gravity = Gravity;
+	Team->Solver.Damping = PhysicsSettings.Damping;
+	Team->Solver.MaxVelocity = PhysicsSettings.MaxVelocity;
+	Team->Solver.SolverIterations = SolverIterations;
+	SimManager->SetTargetHz(static_cast<float>(TargetFramerate));
 
 	// Update inertia constraint origin if set
 	if (Team->Solver.InertiaConstraint.IsValid())
@@ -1020,19 +1032,19 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 		{
 			const FTransform CompTransform = SkelComp->GetComponentTransform();
 			Team->Solver.InertiaConstraint->UpdateOrigin(
-				CompTransform.GetTranslation() * this->SkelCompMoveScale,
+				CompTransform.GetTranslation() * SkelCompMoveScale,
 				CompTransform.GetRotation());
 
 			// Handle teleport
 			if (Team->Solver.InertiaConstraint->CheckTeleport())
 			{
-				SimManager->RequestReset(this->TeamId, CurrentAnimPositions);
+				SimManager->RequestReset(TeamId, CurrentAnimPositions);
 			}
 		}
 	}
 
 	// Read results from double buffer
-	const TArray<FTransform>& SimResult = SimManager->ReadResults(this->TeamId);
+	const TArray<FTransform>& SimResult = SimManager->ReadResults(TeamId);
 
 	if (SimResult.Num() != NumBones)
 	{
@@ -1040,10 +1052,10 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	}
 
 	const float InterpAlpha = SimManager->GetInterpolationAlpha();
-	const float BlendAlpha = FAnimWeight::IsRelevant(this->ActualAlpha) ? this->ActualAlpha : 1.f;
+	const float BlendAlpha = FAnimWeight::IsRelevant(ActualAlpha) ? ActualAlpha : 1.f;
 
 	// Skip pinned root bones
-	const int32 SkipCount = this->bMultiChainMode
+	const int32 SkipCount = bMultiChainMode
 		? 1  // shared root
 		: 1; // first bone is fixed
 
@@ -1056,9 +1068,9 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 
 		FTransform Interped;
 
-		if (this->PrevResults.IsValidIndex(i))
+		if (PrevResults.IsValidIndex(i))
 		{
-			Interped.Blend(this->PrevResults[i], SimResult[i], InterpAlpha);
+			Interped.Blend(PrevResults[i], SimResult[i], InterpAlpha);
 		}
 		else
 		{
@@ -1078,12 +1090,12 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	// UE requires OutBoneTransforms sorted by BoneIndex (ascending)
 	OutBoneTransforms.Sort(FCompareBoneTransformIndex());
 
-	this->PrevResults = SimResult;
+	PrevResults = SimResult;
 
 #if ENABLE_DRAW_DEBUG
-	if (this->bShowDebug)
+	if (bShowDebug)
 	{
-		this->DrawDebug(Output);
+		DrawDebug(Output);
 	}
 #endif
 }
@@ -1094,18 +1106,18 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 
 void FAnimNode_MagicaCloth::DrawDebug(FComponentSpacePoseContext& Output) const
 {
-	if (this->TeamId == MAGICA_INVALID_TEAM_ID || !this->CachedSubsystem.IsValid())
+	if (TeamId == MAGICA_INVALID_TEAM_ID || !CachedSubsystem.IsValid())
 	{
 		return;
 	}
 
-	FMagicaSimulationManager* SimManager = this->CachedSubsystem->GetSimulationManager();
+	FMagicaSimulationManager* SimManager = CachedSubsystem->GetSimulationManager();
 	if (!SimManager)
 	{
 		return;
 	}
 
-	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(this->TeamId);
+	FMagicaSimulationManager::FTeamData* Team = SimManager->GetTeam(TeamId);
 	if (!Team)
 	{
 		return;
@@ -1133,17 +1145,17 @@ void FAnimNode_MagicaCloth::DrawDebug(FComponentSpacePoseContext& Output) const
 	{
 		const FVector WorldPos = CompToWorld.TransformPosition(Positions[i]);
 		const FColor Color = (InvMasses.IsValidIndex(i) && InvMasses[i] <= 0.f) ? FColor::Red : FColor::Green;
-		const float Size = (InvMasses.IsValidIndex(i) && InvMasses[i] <= 0.f) ? this->DebugParticleSize * 2.f : this->DebugParticleSize;
+		const float Size = (InvMasses.IsValidIndex(i) && InvMasses[i] <= 0.f) ? DebugParticleSize * 2.f : DebugParticleSize;
 
 		Proxy->AnimDrawDebugPoint(WorldPos, Size * 3.f, Color, false, -1.f, SDPG_Foreground);
 	}
 
 	// Draw parent-child connections
-	if (this->VirtualMeshPtr)
+	if (VirtualMeshPtr)
 	{
-		for (int32 i = 0; i < this->VirtualMeshPtr->ParentIndices.Num(); ++i)
+		for (int32 i = 0; i < VirtualMeshPtr->ParentIndices.Num(); ++i)
 		{
-			const int32 ParentIdx = this->VirtualMeshPtr->ParentIndices[i];
+			const int32 ParentIdx = VirtualMeshPtr->ParentIndices[i];
 			if (ParentIdx >= 0 && ParentIdx < Positions.Num() && i < Positions.Num())
 			{
 				const FVector PosA = CompToWorld.TransformPosition(Positions[ParentIdx]);
