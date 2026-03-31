@@ -1035,7 +1035,17 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	}
 
 	// 3. Update solver parameters
-	Team->Solver.Gravity = Gravity;
+	// Convert world-space gravity to component space
+	USkeletalMeshComponent* SkelComp = Output.AnimInstanceProxy->GetSkelMeshComponent();
+	if (SkelComp)
+	{
+		const FTransform CompToWorld = SkelComp->GetComponentTransform();
+		Team->Solver.Gravity = CompToWorld.InverseTransformVectorNoScale(Gravity);
+	}
+	else
+	{
+		Team->Solver.Gravity = Gravity;
+	}
 	Team->Solver.Damping = PhysicsSettings.Damping;
 	Team->Solver.MaxVelocity = PhysicsSettings.MaxVelocity;
 	Team->Solver.SolverIterations = SolverIterations;
