@@ -740,20 +740,20 @@ void FAnimNode_MagicaCloth::SetupConstraints(FMagicaSimulationManager::FTeamData
 		Team.Solver.PreCollisionConstraints.Add(Constraint);
 	}
 
-	// --- Tether Constraint ---
+	// --- Tether Constraint (generous max distance) ---
 	{
 		auto Constraint = MakeShared<FMagicaTetherConstraint>();
-		Constraint->Build(Positions, ParentIndices, VM.Attributes, 1.1f);
+		Constraint->Build(Positions, ParentIndices, VM.Attributes, 2.0f); // Allow 2x rest distance
 		Team.Solver.PreCollisionConstraints.Add(Constraint);
 	}
 
-	// --- Angle Constraint (BoneCloth only) ---
+	// --- Angle Constraint (BoneCloth only, very soft) ---
 	if (VM.RestLocalRotations.Num() > 0 && VM.RestLocalOffsets.Num() > 0)
 	{
 		auto Constraint = MakeShared<FMagicaAngleConstraint>();
 		Constraint->Build(Positions, ParentIndices, VM.RestLocalRotations, VM.RestLocalOffsets,
-			LocalStiffness * 0.5f);
-		Team.Solver.PreCollisionConstraints.Add(Constraint);
+			LocalStiffness * 0.05f); // Very soft — just a hint, not a hard constraint
+		Team.Solver.PostCollisionConstraints.Add(Constraint); // Post-collision so it doesn't fight distance
 	}
 
 	// --- Inertia Constraint ---
@@ -1052,13 +1052,22 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 
 	// 4. Step simulation synchronously
 	const float DeltaTime = Output.AnimInstanceProxy->GetDeltaSeconds();
-	if (DeltaTime > UE_SMALL_NUMBER)
-	{
-		Team->Solver.Step(DeltaTime);
-	}
+	const float ClampedDt = FMath::Clamp(DeltaTime, 0.0001f, 0.033f); // Clamp to avoid instability
+	Team->Solver.Step(ClampedDt);
 
 	// 5. Read results directly from solver
 	const TArray<FVector>& SimPositions = Team->Solver.GetPositions();
+
+	// Debug: log first free particle displacement
+	static int32 DebugCounter = 0;
+	if (++DebugCounter % 120 == 0 && SimPositions.Num() > 2)
+	{
+		const FVector AnimPos = CurrentAnimPositions[2];
+		const FVector SimPos = SimPositions[2];
+		UE_LOG(LogTemp, Warning, TEXT("MagicaCloth: Particle[2] Anim=(%s) Sim=(%s) Delta=(%s) Gravity=(%s) Dt=%.4f"),
+			*AnimPos.ToString(), *SimPos.ToString(), *(SimPos - AnimPos).ToString(),
+			*Team->Solver.Gravity.ToString(), ClampedDt);
+	}
 	if (SimPositions.Num() != NumBones)
 	{
 		return;

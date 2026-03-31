@@ -69,7 +69,7 @@ struct MAGICACLOTHUE_API FMagicaPhysicsSettings
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float Stiffness = 1.0f;
+	float Stiffness = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float BendStiffness = 0.5f;
