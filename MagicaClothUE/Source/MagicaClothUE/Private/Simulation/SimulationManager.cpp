@@ -22,13 +22,12 @@ void FMagicaSimulationManager::Start()
 
 void FMagicaSimulationManager::Stop()
 {
+	if (!Thread) return;
 	bRunning.store(false, std::memory_order_release);
-	if (Thread)
-	{
-		Thread->WaitForCompletion();
-		delete Thread;
-		Thread = nullptr;
-	}
+	FRunnableThread* ThreadToDelete = Thread;
+	Thread = nullptr;  // Prevent re-entrant call from FRunnableThread destructor
+	ThreadToDelete->WaitForCompletion();
+	delete ThreadToDelete;
 }
 
 bool FMagicaSimulationManager::Init()
