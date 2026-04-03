@@ -201,7 +201,7 @@ struct MAGICACLOTHUE_API FAnimNode_MagicaCloth : public FAnimNode_SkeletalContro
 
 	/** Gravity vector. */
 	UPROPERTY(EditAnywhere, Category = "External Force", meta = (PinHiddenByDefault))
-	FVector Gravity = FVector(0.0, 0.0, -490.0);
+	FVector Gravity = FVector(0.0, 0.0, -150.0);
 
 	/** Enable wind influence from UE Wind Directional Source. */
 	UPROPERTY(EditAnywhere, Category = "External Force", meta = (PinHiddenByDefault))

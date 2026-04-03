@@ -1058,16 +1058,7 @@ void FAnimNode_MagicaCloth::EvaluateSkeletalControl_AnyThread(
 	// 5. Read results directly from solver
 	const TArray<FVector>& SimPositions = Team->Solver.GetPositions();
 
-	// Debug: log first free particle displacement
-	static int32 DebugCounter = 0;
-	if (++DebugCounter % 120 == 0 && SimPositions.Num() > 2)
-	{
-		const FVector AnimPos = CurrentAnimPositions[2];
-		const FVector SimPos = SimPositions[2];
-		UE_LOG(LogTemp, Warning, TEXT("MagicaCloth: Particle[2] Anim=(%s) Sim=(%s) Delta=(%s) Gravity=(%s) Dt=%.4f"),
-			*AnimPos.ToString(), *SimPos.ToString(), *(SimPos - AnimPos).ToString(),
-			*Team->Solver.Gravity.ToString(), ClampedDt);
-	}
+	// Debug logging removed for release
 	if (SimPositions.Num() != NumBones)
 	{
 		return;
